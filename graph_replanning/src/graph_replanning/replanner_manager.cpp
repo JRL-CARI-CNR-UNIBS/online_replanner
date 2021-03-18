@@ -28,7 +28,7 @@ void ReplannerManager::fromParam()
   if(!nh_.getParam("base_link",base_link_)) throw  std::invalid_argument("base_link not set");
   if(!nh_.getParam("last_link",last_link_)) throw  std::invalid_argument("last_link not set");
   if(!nh_.getParam("spawn_objs",spawn_objs_)) spawn_objs_ = false;
-  if(!nh_.getParam("scaling",scaling_)) scaling_ = 1.0;
+  if(!nh_.getParam("scaling",scaling_from_param_)) scaling_from_param_ = 1.0;
   if(!nh_.getParam("checker_resolution",checker_resol_)) checker_resol_ = 0.05;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_)) display_timing_warning_ = false;
   if(!nh_.getParam("display_replanning_success",display_replanning_success_)) display_replanning_success_ = false;
@@ -115,11 +115,6 @@ void ReplannerManager::attributeInitialization()
   configuration_replan_ = current_path_->projectOnClosestConnection(point2project);
   current_configuration_ = current_path_->getWaypoints().front();
 
-  if(read_real_joints_values_)
-  {
-    //if((getRobotJoints()-current_configuration_).norm()>1e-04) throw std::invalid_argument("robot position and current configuration don't match");
-  }
-
   n_conn_ = 0;
 
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
@@ -130,15 +125,16 @@ void ReplannerManager::attributeInitialization()
   new_joint_state_.name = joint_names;
   new_joint_state_.header.frame_id = kinematic_model->getModelFrame();
   new_joint_state_.header.stamp=ros::Time::now();
-  target_pub_.publish(new_joint_state_); //COMMENTA
+  //target_pub_.publish(new_joint_state_);
 }
 
 void ReplannerManager::subscribeTopicsAndServices()
 {
-  //joints_state_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<sensor_msgs::JointState>>(nh_,"/joint_states",1);
-  joints_state_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<sensor_msgs::JointState>>(nh_,"/fake_joint_states",1);
-  //target_pub_= nh_.advertise<sensor_msgs::JointState>("/joint_target",1);
-  target_pub_= nh_.advertise<sensor_msgs::JointState>("/fake_joint_states",1);
+  speed_ovr_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/speed_ovr",1);
+  safe_ovr_1_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_1",1);
+  safe_ovr_2_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_2",1);
+  target_pub_= nh_.advertise<sensor_msgs::JointState>("/joint_target",1);
+  unscaled_target_pub_= nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1);
   plannning_scene_client_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
 
   if (!plannning_scene_client_.waitForExistence(ros::Duration(10)))
@@ -440,27 +436,35 @@ bool ReplannerManager::trajectoryExecutionThread()
     trj_mtx_.lock();
     real_time_ += dt_;
 
-    Eigen::VectorXd point2project(pnt_.positions.size());
+    double scaling = 1.0;
     if(read_real_joints_values_)
     {
-      point2project = getRobotJoints();
-      t_+= trajectory_->getTimeFromPositionOnTrj(point2project);
+      scaling = scaling_from_param_*speed_ovr_sub_->getData().data*safe_ovr_1_sub_->getData().data*safe_ovr_2_sub_->getData().data;  //Se non viene pubblicato nulla?
+      //t_=trajectory_->getTimeFromPositionOnTrj(point2project);
     }
     else
     {
-      for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
+      scaling = scaling_from_param_;
     }
+
+    t_+= scaling*dt_;
+    interpolator_.interpolate(ros::Duration(t_),pnt_);
+    Eigen::VectorXd point2project(pnt_.positions.size());
+    for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
+
     past_current_configuration = current_configuration_;
     current_configuration_ = replanner_->getCurrentPath()->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
-
-    t_+= scaling_*dt_;
-    interpolator_.interpolate(ros::Duration(t_),pnt_);
 
     trj_mtx_.unlock();
     replanner_mtx_.unlock();
 
     new_joint_state_.position = pnt_.positions;
     new_joint_state_.velocity = pnt_.velocities;
+    new_joint_state_.header.stamp=ros::Time::now();
+    unscaled_target_pub_.publish(new_joint_state_);  //Però t è quello scalato! E' ok?
+
+    new_joint_state_.position = pnt_.positions;
+    for(unsigned int i=0;i<pnt_.velocities.size(); i++) new_joint_state_.velocity.at(i) = pnt_.velocities.at(i)*scaling;
     new_joint_state_.header.stamp=ros::Time::now();
     target_pub_.publish(new_joint_state_);
 
@@ -761,16 +765,6 @@ void ReplannerManager::spawnObjects()
     ROS_ERROR("srv error");
   }
   scene_mtx_.unlock();
-}
-
-Eigen::VectorXd ReplannerManager::getRobotJoints()
-{
-  sensor_msgs::JointState joints = joints_state_sub_->getData();
-  Eigen::VectorXd robot_pos(joints.position.size());
-
-  for(unsigned int i=0; i<joints.position.size();i++) robot_pos[i] = joints.position.at(i);
-
-  return robot_pos;
 }
 
 }

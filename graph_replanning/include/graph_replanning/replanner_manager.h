@@ -11,6 +11,7 @@
 #include <thread>
 #include <mutex>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Int64.h>
 #include <std_srvs/Empty.h>
 #include <graph_core/solvers/multigoal.h>
 
@@ -56,7 +57,7 @@ protected:
   double replan_offset_;
   double t_replan_;
   double replanning_thread_frequency_;
-  double scaling_;
+  double scaling_from_param_;
   double checker_resol_;
 
   ReplannerPtr replanner_;
@@ -79,7 +80,9 @@ protected:
   std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
 
-  std::shared_ptr<ros_helper::SubscriptionNotifier<sensor_msgs::JointState>> joints_state_sub_;
+  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> speed_ovr_sub_;
+  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_1_sub_;
+  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_2_sub_;
   ros::Publisher current_norm_pub_;
   ros::Publisher new_norm_pub_;
   ros::Publisher time_replanning_pub_;
@@ -87,6 +90,7 @@ protected:
   ros::Publisher obs_new_norm_pub_;
   ros::Publisher obs_time_replanning_pub_;
   ros::Publisher target_pub_;
+  ros::Publisher unscaled_target_pub_;
   ros::Publisher time_pub_;
   ros::ServiceClient plannning_scene_client_;
   ros::ServiceClient add_obj_;
@@ -109,7 +113,6 @@ public:
   void displayThread();
   void spawnObjects();
   bool trajectoryExecutionThread();
-  Eigen::VectorXd getRobotJoints();
 };
 
 }

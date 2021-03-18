@@ -249,7 +249,6 @@ double Trajectory::getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value,
     t2 = t1+step;
     final_time = trj_->getDuration();
 
-    Eigen::VectorXd pos1, pos2;
 
     moveit_msgs::RobotTrajectory tmp_trj_msg;
     trj_->getRobotTrajectoryMsg(tmp_trj_msg);
@@ -267,6 +266,9 @@ double Trajectory::getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value,
 
         interpolator.interpolate(ros::Duration(t1),pnt1);
         interpolator.interpolate(ros::Duration(t2),pnt2);
+
+        Eigen::VectorXd pos1(pnt1.positions.size());
+        Eigen::VectorXd pos2(pnt2.positions.size());
 
         for(unsigned int i=0; i<pnt1.positions.size();i++)
         {
