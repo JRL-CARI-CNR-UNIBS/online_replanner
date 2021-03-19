@@ -66,6 +66,31 @@ int main(int argc, char **argv)
     return 0;
   }
 
+  bool multiple_paths = true;
+  std::vector<double> start_configuration2;
+  if (!nh.getParam("start_configuration2",start_configuration2))
+  {
+    multiple_paths = false;
+  }
+
+  std::vector<double> goal_configuration2;
+  if (!nh.getParam("goal_configuration2",goal_configuration2))
+  {
+    multiple_paths = false;
+  }
+
+  std::vector<double> start_configuration3;
+  if (!nh.getParam("start_configuration3",start_configuration3))
+  {
+    multiple_paths = false;
+  }
+
+  std::vector<double> goal_configuration3;
+  if (!nh.getParam("goal_configuration3",goal_configuration3))
+  {
+    multiple_paths = false;
+  }
+
   // /////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
 
   moveit::planning_interface::MoveGroupInterface move_group(group_name);
@@ -119,6 +144,20 @@ int main(int argc, char **argv)
 
   Eigen::VectorXd start = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
   Eigen::VectorXd goal = Eigen::Map<Eigen::VectorXd>(goal_configuration.data(), goal_configuration.size());
+
+  Eigen::VectorXd start2;
+  Eigen::VectorXd goal2;
+  Eigen::VectorXd start3;
+  Eigen::VectorXd goal3;
+
+  if(multiple_paths)
+  {
+    start2 = Eigen::Map<Eigen::VectorXd>(start_configuration2.data(), start_configuration2.size());
+    goal2 = Eigen::Map<Eigen::VectorXd>(goal_configuration2.data(), goal_configuration2.size());
+
+    start3 = Eigen::Map<Eigen::VectorXd>(start_configuration3.data(), start_configuration3.size());
+    goal3 = Eigen::Map<Eigen::VectorXd>(goal_configuration3.data(), goal_configuration3.size());
+  }
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start, goal, lb, ub);
   sampler->setCost(std::numeric_limits<double>::infinity()); //to sample the whole joints space
@@ -183,13 +222,25 @@ int main(int argc, char **argv)
 
   ROS_INFO_STREAM("time avg: "<<time_avg<<" max_time: "<<max_time<<" count>0.001: "<<count<<" free: "<<n_succ<<" coll: "<<n_fail);
 
-  bool success;
+  bool success, success2, success3;
   ros::WallTime tic = ros::WallTime::now();
   success = checker->checkPath(start,goal);
+  if(multiple_paths)
+  {
+    success2 = checker->checkPath(start2,goal2);
+    success3 = checker->checkPath(start3,goal3);
+  }
   ros::WallTime toc = ros::WallTime::now();
 
   ROS_INFO_STREAM("checker resol: "<<checker_resolution);
-  ROS_INFO_STREAM("time path: "<<(toc-tic).toSec()<<" cost: "<<(goal-start).norm()<<" success: "<<success);
+  ROS_INFO_STREAM("time path: "<<(toc-tic).toSec());
+  ROS_INFO_STREAM("cost: "<<(goal-start).norm()<<" success: "<<success);
+
+  if(multiple_paths)
+  {
+    ROS_INFO_STREAM("cost2: "<<(goal2-start2).norm()<<" success2: "<<success2);
+    ROS_INFO_STREAM("cost3: "<<(goal3-start3).norm()<<" success3: "<<success3);
+  }
 
   return 0;
 }

@@ -414,6 +414,7 @@ bool ReplannerManager::trajectoryExecutionThread()
   start_log_.call(srv_log);
 
   target_pub_.publish(new_joint_state_);
+  unscaled_target_pub_.publish(new_joint_state_);
 
   Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
@@ -439,8 +440,10 @@ bool ReplannerManager::trajectoryExecutionThread()
     double scaling = 1.0;
     if(read_real_joints_values_)
     {
-      scaling = scaling_from_param_*speed_ovr_sub_->getData().data*safe_ovr_1_sub_->getData().data*safe_ovr_2_sub_->getData().data;  //Se non viene pubblicato nulla?
-      //t_=trajectory_->getTimeFromPositionOnTrj(point2project);
+      if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_1_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_2_sub_->waitForANewData(ros::Duration(0.002)))
+      {
+        scaling = speed_ovr_sub_->getData().data*safe_ovr_1_sub_->getData().data*safe_ovr_2_sub_->getData().data;  //Se non viene pubblicato nulla?
+      }
     }
     else
     {
@@ -461,10 +464,10 @@ bool ReplannerManager::trajectoryExecutionThread()
     new_joint_state_.position = pnt_.positions;
     new_joint_state_.velocity = pnt_.velocities;
     new_joint_state_.header.stamp=ros::Time::now();
-    unscaled_target_pub_.publish(new_joint_state_);  //Però t è quello scalato! E' ok?
+    unscaled_target_pub_.publish(new_joint_state_);  //Però t è quello scalato (quindi le posizioni corrispondono a t scalato)! E' ok?
 
     new_joint_state_.position = pnt_.positions;
-    for(unsigned int i=0;i<pnt_.velocities.size(); i++) new_joint_state_.velocity.at(i) = pnt_.velocities.at(i)*scaling;
+    for(unsigned int i=0;i<pnt_.velocities.size(); i++) new_joint_state_.velocity[i] = pnt_.velocities[i]*scaling;
     new_joint_state_.header.stamp=ros::Time::now();
     target_pub_.publish(new_joint_state_);
 

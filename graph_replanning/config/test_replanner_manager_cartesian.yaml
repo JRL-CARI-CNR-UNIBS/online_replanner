@@ -10,7 +10,8 @@ spawn_objs: true
 display_timing_warning: false
 display_replanning_success: true
 scaling: 1.0
-read_real_joints_values_: true
+read_real_joints_values_: false
+checker_resolution: 0.01
 
 
 start_configuration: [0.0, 0.0, 0.0]
