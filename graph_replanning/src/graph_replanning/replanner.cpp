@@ -74,7 +74,7 @@ bool Replanner::simplifyReplannedPath(const double& distance)
     simplify = replanned_path_->simplify(distance);
     if(simplify)
     {
-      count ++;
+      count +=1;
       simplified = true;
     }
   }

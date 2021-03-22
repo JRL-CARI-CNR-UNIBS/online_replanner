@@ -10,4 +10,4 @@ time_for_repl: 0.1
 opt_path: true
 start_configuration: [0.0, 0.0, 0.0]
 stop_configuration: [0.8, 0.8, 0.8]
-n_test: 1
+n_test: 10

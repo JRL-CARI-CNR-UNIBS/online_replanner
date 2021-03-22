@@ -4,6 +4,7 @@
 #include <graph_replanning/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
 #include <graph_replanning/replanner.h>
+#include <graph_core/parallel_moveit_collision_checker.h>
 #include <moveit_planning_helper/spline_interpolator.h>
 #include <object_loader_msgs/addObjects.h>
 #include <object_loader_msgs/removeObjects.h>

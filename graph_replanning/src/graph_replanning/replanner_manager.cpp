@@ -92,8 +92,10 @@ void ReplannerManager::attributeInitialization()
   }
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  checker_thread_cc_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_);
-  checker_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_);
+  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_);
+  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
+  //checker_thread_cc_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_);
+  //checker_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_);
 
   current_path_->setChecker(checker_);  //To synchronize path checker with the related one to the planning scene that will be used by the replanner, which will be different from the planning scene used by the collision checking thread
   for(const PathPtr &path:other_paths_) path->setChecker(checker_);
@@ -206,7 +208,7 @@ void ReplannerManager::replanningThread()
       scene_mtx_.lock();
       moveit_msgs::PlanningScene scn;
       planning_scn_->getPlanningSceneMsg(scn);
-      planning_scn_replanning_->setPlanningSceneMsg(scn);
+      checker_->setPlanningSceneMsg(scn);
       scene_mtx_.unlock();
 
       pathplan::PathPtr current_path_copy = current_path_->clone();
@@ -363,10 +365,14 @@ void ReplannerManager::collisionCheckThread()
     }
     ros::WallTime toc_pln_call = ros::WallTime::now();
 
-    if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene))
+    /*if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene))
     {
       ROS_ERROR("unable to update planning scene");
-    }
+    }*/
+
+    //checker_mtx_.lock();
+    checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);
+    //checker_mtx_.unlock();
     scene_mtx_.unlock();
 
     ros::WallTime tic_mtx = ros::WallTime::now();
@@ -374,11 +380,15 @@ void ReplannerManager::collisionCheckThread()
     ros::WallTime toc_mtx = ros::WallTime::now();
     ros::WallTime tic_check = ros::WallTime::now();
     //current_path_->isValid(checker_thread_cc_);
-    for(const pathplan::PathPtr& path: other_paths_) path->isValid(checker_thread_cc_);
+    for(const pathplan::PathPtr& path: other_paths_)
+    {
+      path->isValid(checker_thread_cc_);
+    }
 
     trj_mtx_.lock();
     pos_closest_obs_from_goal_check_ = -1;
     bool path_obstructed = !(current_path_->isValidFromConf(current_configuration_,pos_closest_obs_from_goal_check_,checker_thread_cc_));
+
     trj_mtx_.unlock();
     ros::WallTime toc_check = ros::WallTime::now();
     if(!computing_avoiding_path_) path_obstructed_ = path_obstructed;
@@ -397,8 +407,8 @@ void ReplannerManager::collisionCheckThread()
     ros::WallTime toc_tot=ros::WallTime::now();
     double duration = (toc_tot-tic_tot).toSec();
 
-    //if(duration>(1/collision_checker_thread_frequency_) && display_timing_warning_)
-    if(duration>(0.040) && display_timing_warning_)
+
+    if(duration>(1/collision_checker_thread_frequency_) && display_timing_warning_)
     {
       ROS_WARN("Collision checking thread time expired: duration-> %f",duration);
       ROS_WARN("t mtx %f, t scn call %f, t check %f",(toc_mtx-tic_mtx).toSec(),(toc_pln_call-tic_pln_call).toSec(),(toc_check-tic_check).toSec());
