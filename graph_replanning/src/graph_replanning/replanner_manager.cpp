@@ -568,19 +568,20 @@ void ReplannerManager::displayThread()
 
   while(!stop_)
   {
-    //checker_mtx_.lock();
-    replanner_mtx_.lock();
-    trj_mtx_.lock();
+    checker_mtx_.lock();
     pathplan::PathPtr current_path = current_path_->clone();
     std::vector<pathplan::PathPtr> other_paths;
     for(const pathplan::PathPtr path:other_paths_) other_paths.push_back(path->clone());
+    checker_mtx_.unlock();
+
+    replanner_mtx_.lock();
+    trj_mtx_.lock();
     Eigen::VectorXd current_configuration = current_configuration_;
     Eigen::VectorXd configuration_replan = configuration_replan_;
     trajectory_msgs::JointTrajectoryPoint pnt = pnt_;
     trajectory_msgs::JointTrajectoryPoint pnt_replan = pnt_replan_;
     trj_mtx_.unlock();
     replanner_mtx_.unlock();
-    //checker_mtx_.unlock();
 
     int path_id = 10;
     int node_id = 1000;

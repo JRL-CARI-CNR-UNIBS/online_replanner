@@ -305,11 +305,13 @@ int main(int argc, char **argv)
       object_loader_msgs::object obj;
       obj.object_type="scatola";
 
-      int obj_conn_pos = current_path->getConnections().size()/2;
+      int obj_conn_pos = current_path->getConnections().size()-1;
       pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
       pathplan::NodePtr obj_parent = obj_conn->getParent();
       pathplan::NodePtr obj_child = obj_conn->getChild();
       Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
+      //Eigen::VectorXd obj_pos = obj_parent->getConfiguration()+(obj_child->getConfiguration()-obj_parent->getConfiguration())*0.9;
+
 
       moveit::core::RobotState obj_pos_state = trajectory.fromWaypoints2State(obj_pos);
       tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
@@ -417,6 +419,10 @@ int main(int argc, char **argv)
       ROS_INFO_STREAM("DURATION: "<<(toc-tic).toSec()<<" success: "<<success<< " n sol: "<<replanner.getReplannedPathVector().size());
       ros::Duration(0.01).sleep();
 
+    //pathplan::PathPtr new_path;
+    //success = replanner.connect2goal(current_path,current_path->getConnections().at(1)->getChild(),new_path);
+
+
     if(success)
     {
       std::vector<int> marker_id; marker_id.push_back(-101);
@@ -426,6 +432,7 @@ int main(int argc, char **argv)
       std::vector<double> marker_scale(3,0.01);
       disp.changeConnectionSize(marker_scale);
       disp.displayPath(replanner.getReplannedPath(),id,"pathplan",marker_color);
+      //disp.displayPath(new_path,id,"pathplan",marker_color);
     }
 
     ros::Duration(2).sleep();

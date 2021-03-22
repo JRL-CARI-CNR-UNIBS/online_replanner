@@ -312,16 +312,37 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
 
   bool success = 0;
 
-  NodePtr goal = current_path->getConnections().back()->getChild();
-  PathPtr subpath1 = current_path->getSubpathFromNode(node);
-  double distance_path_node = (node->getConfiguration()-goal->getConfiguration()).norm();
+  Eigen::VectorXd first_free_point;
+  checker_->checkPath(current_path->getConnections().back()->getChild()->getConfiguration(),current_path->getConnections().back()->getParent()->getConfiguration(),first_free_point); //with inverted child-parent the free conf is the first one after the obstacle
+  if(first_free_point.size() == 0) first_free_point = current_path->getConnections().back()->getChild()->getConfiguration();
+  NodePtr first_free_node = std::make_shared<Node>(first_free_point);
 
-  if (distance_path_node < subpath1->cost())
+  bool before_goal = false;
+  if(first_free_point != current_path->getConnections().back()->getChild()->getConfiguration()) before_goal = true;
+
+  PathPtr subpath1 = current_path->getSubpathFromNode(node);
+  double distance_path_node = (node->getConfiguration()-first_free_point).norm();
+  PathPtr subpath2;
+  double subpath2_cost = 0;
+  if(before_goal)
+  {
+    std::vector<ConnectionPtr> conn_v;
+    ConnectionPtr conn = std::make_shared<Connection>(first_free_node,current_path->getConnections().back()->getChild());
+    conn_v.push_back(conn);
+
+    subpath2_cost = metrics_->cost(first_free_node,current_path->getConnections().back()->getChild());
+    conn->setCost(subpath2_cost);
+    conn->add();
+    subpath2 = std::make_shared<Path>(conn_v,metrics_,checker_);
+  }
+  double diff_subpath_cost = subpath1->cost()-subpath2_cost;
+
+  if (diff_subpath_cost > 0 && distance_path_node < diff_subpath_cost)
   {
     NodePtr node_fake = std::make_shared<Node>(node->getConfiguration());
-    NodePtr goal_fake = std::make_shared<Node>(goal->getConfiguration());
+    NodePtr free_node_fake = std::make_shared<Node>(first_free_point);
 
-    SamplerPtr sampler = std::make_shared<InformedSampler>(node_fake->getConfiguration(), goal_fake->getConfiguration(), lb_, ub_,subpath1->cost());
+    SamplerPtr sampler = std::make_shared<InformedSampler>(node_fake->getConfiguration(), free_node_fake->getConfiguration(), lb_, ub_,diff_subpath_cost);
 
     solver_->setSampler(sampler);
     solver_->resetProblem();
@@ -333,7 +354,7 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
     ros::WallTime tic_setProblem = ros::WallTime::now();
 
     if(pathSwitch_verbose_) ROS_INFO("Searching for a direct connection...");
-    solver_->addGoal(goal_fake,time);
+    solver_->addGoal(free_node_fake,time);
     bool directly_connected = solver_->solved();
 
     if(pathSwitch_verbose_)
@@ -345,10 +366,11 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
       ROS_INFO_STREAM("Time to directly connect: "<<(toc_setProblem-tic_setProblem).toSec());
     }
 
+    PathPtr connecting_path;
     bool solver_has_solved;
     if(directly_connected)
     {
-      new_path = solver_->getSolution();
+      connecting_path = solver_->getSolution();
       solver_has_solved = true;
     }
 
@@ -361,7 +383,7 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
 
       if(pathSwitch_verbose_) ROS_INFO_STREAM("solving...max time: "<<time);
 
-      solver_has_solved = solver_->solve(new_path,1000,time);
+      solver_has_solved = solver_->solve(connecting_path,1000,time);
     }
 
     if (solver_has_solved)
@@ -375,14 +397,14 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
         }
 
         PathLocalOptimizer path_solver(checker_, metrics_);
-        path_solver.setPath(new_path);
+        path_solver.setPath(connecting_path);
 
         toc = ros::WallTime::now();
         if(pathSwitch_cycle_time_mean_ == initial_value) time = initial_value-(toc-tic).toSec();
         else time = (2-percentage_variability)*pathSwitch_cycle_time_mean_-(toc-tic).toSec();
         ros::WallTime tic_opt = ros::WallTime::now();
 
-        path_solver.solve(new_path,10,time);
+        path_solver.solve(connecting_path,10,time);
 
         if(pathSwitch_verbose_)
         {
@@ -391,16 +413,18 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
         }
       }
 
-      std::vector<ConnectionPtr> new_path_conn = new_path->getConnections();
-      std::vector<ConnectionPtr> new_connections;
+      std::vector<ConnectionPtr>  connecting_path_conn = connecting_path->getConnections();
+      std::vector<ConnectionPtr> new_connecting_path_conn;
 
-      if(pathSwitch_verbose_) ROS_INFO_STREAM("solution cost: "<<new_path->cost());
+      double conn_cost = connecting_path->cost()+subpath2_cost;
 
-      if(new_path->cost()<subpath1->cost())
+      if(pathSwitch_verbose_) ROS_INFO_STREAM("solution cost: "<<conn_cost);
+
+      if(conn_cost<subpath1->cost())
       {
-        if(new_path_conn.size()>1)
+        if(connecting_path_conn.size()>1)
         {
-          NodePtr node1 = new_path_conn.front()->getChild();
+          NodePtr node1 = connecting_path_conn.front()->getChild();
 
           double conn1_cost = metrics_->cost(node,node1);
 
@@ -408,24 +432,58 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
           conn1->setCost(conn1_cost);
           conn1->add();
 
-          new_connections.push_back(conn1);
-          new_connections.insert(new_connections.end(),new_path_conn.begin()+1,new_path_conn.end());
-          new_path_conn.front()->remove();
+          if(before_goal)
+          {
+            NodePtr node2 = connecting_path_conn.back()->getParent();
+
+            double conn2_cost = metrics_->cost(node2,first_free_node);
+
+            ConnectionPtr conn2 = std::make_shared<Connection>(node2,first_free_node);
+            conn2->setCost(conn2_cost);
+            conn2->add();
+
+            new_connecting_path_conn.push_back(conn1);
+            if(connecting_path_conn.size()>2) new_connecting_path_conn.insert(new_connecting_path_conn.end(), connecting_path_conn.begin()+1, connecting_path_conn.end()-1);
+            new_connecting_path_conn.push_back(conn2);
+
+            connecting_path_conn.front()->remove();
+            connecting_path_conn.back()->remove();
+          }
+          else
+          {
+            new_connecting_path_conn.push_back(conn1);
+            new_connecting_path_conn.insert(new_connecting_path_conn.end(),connecting_path_conn.begin()+1,connecting_path_conn.end());
+
+            connecting_path_conn.front()->remove();
+          }
         }
         else
         {
-          double conn1_cost =  metrics_->cost(node,goal_fake);
+          double conn1_cost =  metrics_->cost(node,free_node_fake);
 
-          ConnectionPtr conn1 = std::make_shared<Connection>(node,goal_fake);
+          ConnectionPtr conn1;
+          if(before_goal)
+          {
+            conn1 = std::make_shared<Connection>(node,first_free_node);
+          }
+          else
+          {
+            conn1 = std::make_shared<Connection>(node,free_node_fake);
+          }
           conn1->setCost(conn1_cost);
           conn1->add();
 
-          new_path_conn.front()->remove();
-          new_connections.push_back(conn1);
+          connecting_path_conn.front()->remove();
+          new_connecting_path_conn.push_back(conn1);
         }
         node_fake->disconnect();
+        if(before_goal)
+        {
+          free_node_fake->disconnect();
+          new_connecting_path_conn.push_back(subpath2->getConnections().at(0));
+        }
 
-        new_path = std::make_shared<Path>(new_connections, metrics_, checker_);
+        new_path = std::make_shared<Path>(new_connecting_path_conn, metrics_, checker_);
         success = 1;
         an_obstacle_ = false;
       }
