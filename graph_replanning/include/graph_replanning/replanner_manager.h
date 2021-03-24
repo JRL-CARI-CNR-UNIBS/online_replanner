@@ -45,9 +45,11 @@ protected:
   bool computing_avoiding_path_;
   bool spawn_objs_;
   bool replanning_;
+  bool replan_relaxed_;
   bool display_timing_warning_;
   bool display_replanning_success_;
   bool read_real_joints_values_;
+  bool emergency_stop_;
 
   int n_conn_;
   int pos_closest_obs_from_goal_repl_;

@@ -256,6 +256,9 @@ int main(int argc, char **argv)
     pathplan::PathPtr current_path = path_vector.front();
     std::vector<pathplan::PathPtr> other_paths = {path_vector.at(1),path_vector.at(2),path_vector.at(3)};
 
+    ROS_INFO_STREAM("cost current path: "<<current_path->cost());
+    for(const pathplan::PathPtr& path:other_paths) ROS_INFO_STREAM("cost path: "<<path->cost());
+
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
     ros::Duration(5).sleep();
     replanner_manager->trajectoryExecutionThread();

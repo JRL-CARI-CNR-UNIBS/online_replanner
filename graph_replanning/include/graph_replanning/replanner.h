@@ -204,6 +204,11 @@ public:
     return success_;
   }
 
+  void setAvailableTime(const double &time)
+  {
+    available_time_ = time;
+  }
+
   bool simplifyReplannedPath(const double& distance);
 
   bool checkPathValidity(const CollisionCheckerPtr &this_checker = NULL);

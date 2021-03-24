@@ -18,4 +18,4 @@ start_configuration: [0.0, 0.0, 0.0]
 stop_configuration: [0.8, 0.8, 0.8]
 init_test: 0
 end_test: 100
-opt_path: false
+opt_path: true

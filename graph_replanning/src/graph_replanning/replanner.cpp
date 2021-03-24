@@ -314,8 +314,14 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
 
   Eigen::VectorXd first_free_point;
   checker_->checkPath(current_path->getConnections().back()->getChild()->getConfiguration(),current_path->getConnections().back()->getParent()->getConfiguration(),first_free_point); //with inverted child-parent the free conf is the first one after the obstacle
-  if(first_free_point.size() == 0) first_free_point = current_path->getConnections().back()->getChild()->getConfiguration();
+  if(first_free_point.size() == 0)
+  {
+    ROS_ERROR("Goal obstructed");
+    return false;
+  }
   NodePtr first_free_node = std::make_shared<Node>(first_free_point);
+
+  //ROS_INFO_STREAM("free point: "<<first_free_point.transpose());
 
   bool before_goal = false;
   if(first_free_point != current_path->getConnections().back()->getChild()->getConfiguration()) before_goal = true;
@@ -327,17 +333,19 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
   if(before_goal)
   {
     std::vector<ConnectionPtr> conn_v;
-    ConnectionPtr conn = std::make_shared<Connection>(first_free_node,current_path->getConnections().back()->getChild());
-    conn_v.push_back(conn);
+    NodePtr goal_fake = std::make_shared<Node>(current_path->getConnections().back()->getChild()->getConfiguration());
 
-    subpath2_cost = metrics_->cost(first_free_node,current_path->getConnections().back()->getChild());
+    ConnectionPtr conn = std::make_shared<Connection>(first_free_node,goal_fake);
+    subpath2_cost = metrics_->cost(first_free_node,goal_fake);
     conn->setCost(subpath2_cost);
     conn->add();
+
+    conn_v.push_back(conn);
     subpath2 = std::make_shared<Path>(conn_v,metrics_,checker_);
   }
   double diff_subpath_cost = subpath1->cost()-subpath2_cost;
 
-  if (diff_subpath_cost > 0 && distance_path_node < diff_subpath_cost)
+  if(diff_subpath_cost > 0 && distance_path_node < diff_subpath_cost)   //always verified..(?)
   {
     NodePtr node_fake = std::make_shared<Node>(node->getConfiguration());
     NodePtr free_node_fake = std::make_shared<Node>(first_free_point);
@@ -481,11 +489,27 @@ bool Replanner::connect2goal(const PathPtr& current_path, const NodePtr& node, P
         {
           free_node_fake->disconnect();
           new_connecting_path_conn.push_back(subpath2->getConnections().at(0));
+
+          if(subpath2->getConnections().size()>1) assert(0);
         }
 
         new_path = std::make_shared<Path>(new_connecting_path_conn, metrics_, checker_);
         success = 1;
         an_obstacle_ = false;
+
+        //ELIMINA
+        //ROS_INFO_STREAM("CONF: "<<new_path->getConnections().front()->getParent()->getConfiguration().transpose());
+        for(unsigned int i=0;i<new_path->getConnections().size()-1;i++)
+        {
+          //ROS_INFO_STREAM("CONF: "<<new_path->getConnections().at(i)->getChild()->getConfiguration().transpose());
+          if(new_path->getConnections().at(i)->getChild() != new_path->getConnections().at(i+1)->getParent())
+          {
+            ROS_ERROR("SCONNESSO");
+            assert(0);
+          }
+        }
+        //ROS_INFO_STREAM("CONF: "<<new_path->getConnections().back()->getChild()->getConfiguration().transpose());
+
       }
       else if(pathSwitch_verbose_) ROS_INFO("It is not a better solution");
 

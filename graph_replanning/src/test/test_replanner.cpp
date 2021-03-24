@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <graph_core/parallel_moveit_collision_checker.h>
 #include <graph_replanning/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
 #include <graph_replanning/replanner.h>
@@ -204,7 +205,8 @@ int main(int argc, char **argv)
   // //////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name);
+  //pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name);
+  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
 
   pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
   disp.clearMarkers();
@@ -310,7 +312,7 @@ int main(int argc, char **argv)
       pathplan::NodePtr obj_parent = obj_conn->getParent();
       pathplan::NodePtr obj_child = obj_conn->getChild();
       Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
-      //Eigen::VectorXd obj_pos = obj_parent->getConfiguration()+(obj_child->getConfiguration()-obj_parent->getConfiguration())*0.9;
+      //Eigen::VectorXd obj_pos = obj_parent->getConfiguration()+(obj_child->getConfiguration()-obj_parent->getConfiguration())*0.8;
 
 
       moveit::core::RobotState obj_pos_state = trajectory.fromWaypoints2State(obj_pos);
@@ -411,20 +413,28 @@ int main(int argc, char **argv)
       replanner.setPathSwitchDisp(disp.pointer());
     }
 
-      double time_repl = time;
-      ros::WallTime tic = ros::WallTime::now();
-      success =  replanner.informedOnlineReplanning(informed,succ_node,time_repl);
-      ros::WallTime toc = ros::WallTime::now();
-      if((toc-tic).toSec()>time) ROS_ERROR("TIME OUT");
-      ROS_INFO_STREAM("DURATION: "<<(toc-tic).toSec()<<" success: "<<success<< " n sol: "<<replanner.getReplannedPathVector().size());
-      ros::Duration(0.01).sleep();
+    double time_repl = time;
+    ros::WallTime tic = ros::WallTime::now();
+    success =  replanner.informedOnlineReplanning(informed,succ_node,time_repl);
+    ros::WallTime toc = ros::WallTime::now();
+    if((toc-tic).toSec()>time) ROS_ERROR("TIME OUT");
+    ROS_INFO_STREAM("DURATION: "<<(toc-tic).toSec()<<" success: "<<success<< " n sol: "<<replanner.getReplannedPathVector().size());
+    ros::Duration(0.01).sleep();
 
-    //pathplan::PathPtr new_path;
-    //success = replanner.connect2goal(current_path,current_path->getConnections().at(1)->getChild(),new_path);
+    /*replanner.setAvailableTime(std::numeric_limits<double>::infinity());
+    pathplan::PathPtr new_path;
+    success = replanner.connect2goal(current_path,current_path->getConnections().at(1)->getChild(),new_path);
 
+    bool goal_ok = checker->check(current_path->getConnections().back()->getChild()->getConfiguration());
+    bool parent_ok = checker->check(current_path->getConnections().back()->getParent()->getConfiguration());
+
+    ROS_INFO_STREAM("goal: "<<goal_ok);
+    ROS_INFO_STREAM("parent: "<<parent_ok);*/
 
     if(success)
     {
+      ROS_WARN("SUCCESS");
+
       std::vector<int> marker_id; marker_id.push_back(-101);
       std::vector<double> marker_color;
       marker_color = {1.0,1.0,0.0,1.0};

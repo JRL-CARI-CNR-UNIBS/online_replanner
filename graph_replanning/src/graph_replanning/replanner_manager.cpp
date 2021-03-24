@@ -47,6 +47,7 @@ void ReplannerManager::attributeInitialization()
   t_replan_ = t_+replan_offset_;
   n_conn_ = 0;
   first_replan_ = true;
+  replan_relaxed_ = false;
   path_obstructed_ = false;
   computing_avoiding_path_ = false;
   pos_closest_obs_from_goal_check_ = -1;
@@ -92,8 +93,8 @@ void ReplannerManager::attributeInitialization()
   }
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_);
-  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
+  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,7, checker_resol_);
+  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,7, checker_resol_);
   //checker_thread_cc_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_);
   //checker_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_);
 
@@ -235,12 +236,14 @@ void ReplannerManager::replanningThread()
         time_informedOnlineRepl = 0.90*dt_replan_restricted_;
         string_dt = " reduced dt";
         computing_avoiding_path_ = true;
+        replan_relaxed_ = true;
       }
       else
       {
         replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
         time_informedOnlineRepl = 0.90*dt_replan_relaxed_;
         string_dt = " relaxed dt";
+        replan_relaxed_ = false;
       }
 
       if(old_path_obstructed != path_obstructed_)
@@ -251,12 +254,16 @@ void ReplannerManager::replanningThread()
       old_path_obstructed = path_obstructed_;
       checker_mtx_.unlock();
 
+      replanner_mtx_.lock();
+      emergency_stop_ = false;  //reset emergency stop (if at the previous iteration it was set, informedOnlineRepl was stopped and a this new iteration can be reset)
+      replanner_mtx_.unlock();
+
       planning_mtx_.lock();
-      ros::WallTime tic_rep=ros::WallTime::now();
       replanning_ = true;
+      ros::WallTime tic_rep=ros::WallTime::now();
       success =  replanner_->informedOnlineReplanning(2,1,time_informedOnlineRepl);
-      replanning_ = false;
       ros::WallTime toc_rep=ros::WallTime::now();
+      replanning_ = false;
       planning_mtx_.unlock();
 
       if((toc_rep-tic_rep).toSec()>=time_informedOnlineRepl/0.9 && display_timing_warning_) ROS_WARN("replanning duration: %f",(toc_rep-tic_rep).toSec());
@@ -365,14 +372,7 @@ void ReplannerManager::collisionCheckThread()
     }
     ros::WallTime toc_pln_call = ros::WallTime::now();
 
-    /*if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene))
-    {
-      ROS_ERROR("unable to update planning scene");
-    }*/
-
-    //checker_mtx_.lock();
     checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);
-    //checker_mtx_.unlock();
     scene_mtx_.unlock();
 
     ros::WallTime tic_mtx = ros::WallTime::now();
@@ -388,18 +388,20 @@ void ReplannerManager::collisionCheckThread()
     trj_mtx_.lock();
     pos_closest_obs_from_goal_check_ = -1;
     bool path_obstructed = !(current_path_->isValidFromConf(current_configuration_,pos_closest_obs_from_goal_check_,checker_thread_cc_));
-
     trj_mtx_.unlock();
+
     ros::WallTime toc_check = ros::WallTime::now();
     if(!computing_avoiding_path_) path_obstructed_ = path_obstructed;
 
-    if(replanning_ && path_obstructed)
+    if(!emergency_stop_ && replanning_ && path_obstructed)
     {
-      bool replan_relaxed = (replan_offset_ == (dt_replan_relaxed_-dt_)*K_OFFSET);
-      if(replan_relaxed || (!replan_relaxed && (pos_closest_obs_from_goal_check_>pos_closest_obs_from_goal_repl_)))  //replanning relaxed or not relaxed but a new closer obstacle is spawned..
+      if(replan_relaxed_ || (!replan_relaxed_ && (pos_closest_obs_from_goal_check_>pos_closest_obs_from_goal_repl_)))  //replanning relaxed or not relaxed but a new closer obstacle is spawned..
       {
-        replanner_->setEmergencyStop();
-        ROS_WARN("EMERGENCY STOP!");
+        replanner_mtx_.lock();
+        //replanner_->setEmergencyStop();
+        emergency_stop_ = true;
+        replanner_mtx_.unlock();
+        //ROS_WARN("EMERGENCY STOP!");
       }
     }
     checker_mtx_.unlock();
@@ -474,7 +476,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     new_joint_state_.position = pnt_.positions;
     new_joint_state_.velocity = pnt_.velocities;
     new_joint_state_.header.stamp=ros::Time::now();
-    unscaled_target_pub_.publish(new_joint_state_);  //Però t è quello scalato (quindi le posizioni corrispondono a t scalato)! E' ok?
+    unscaled_target_pub_.publish(new_joint_state_);
 
     new_joint_state_.position = pnt_.positions;
     for(unsigned int i=0;i<pnt_.velocities.size(); i++) new_joint_state_.velocity[i] = pnt_.velocities[i]*scaling;
@@ -682,6 +684,11 @@ void ReplannerManager::spawnObjects()
       if(third_object_spawned)
       {
         obj_conn_pos = idx_current_conn;
+
+        replanner_mtx_.lock();
+        int size = replanner_->getCurrentPath()->getConnections().size();
+        replanner_mtx_.unlock();
+        obj_conn_pos = size-1;
       }
       else
       {
@@ -693,6 +700,7 @@ void ReplannerManager::spawnObjects()
         obj_conn_pos = (rand() % (size-idx_current_conn)) + idx_current_conn;
 
         if(obj_conn_pos == idx_current_conn) obj_conn_pos +=1;  //ELIMINA
+
       }
       pathplan::ConnectionPtr obj_conn;
       pathplan::NodePtr obj_parent;
@@ -725,7 +733,8 @@ void ReplannerManager::spawnObjects()
         obj_conn = replanner_->getCurrentPath()->getConnections().at(obj_conn_pos);
         obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
-        obj_pos =  (obj_child->getConfiguration() +  obj_parent->getConfiguration())/2;
+        //obj_pos =  (obj_child->getConfiguration() +  obj_parent->getConfiguration())/2;
+        obj_pos =  obj_parent->getConfiguration()+(obj_child->getConfiguration() -  obj_parent->getConfiguration())*0.2;
         replanner_mtx_.unlock();
       }
 
