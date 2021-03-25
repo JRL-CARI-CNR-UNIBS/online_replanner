@@ -2,8 +2,8 @@
 #include <graph_replanning/trajectory.h>
 #include <moveit/robot_state/robot_state.h>
 #include <graph_replanning/replanner.h>
-#include <object_loader_msgs/addObjects.h>
-#include <object_loader_msgs/removeObjects.h>
+#include <object_loader_msgs/AddObjects.h>
+#include <object_loader_msgs/RemoveObjects.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
 
 int main(int argc, char **argv)
@@ -84,10 +84,10 @@ int main(int argc, char **argv)
     }
   }
 
-  ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::addObjects>("add_object_to_scene");
-  ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::removeObjects>("remove_object_from_scene");
-  object_loader_msgs::addObjects add_srv;
-  object_loader_msgs::removeObjects remove_srv;
+  ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
+  ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
+  object_loader_msgs::AddObjects add_srv;
+  object_loader_msgs::RemoveObjects remove_srv;
 
   // ///////////////////////////////////UPDATING THE PLANNING STATIC SCENE////////////////////////////////////
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
     id++;
 
     // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
-    ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::addObjects>("add_object_to_scene");
+    ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
 
     if (!add_obj.waitForExistence(ros::Duration(10)))
     {
@@ -176,8 +176,8 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    object_loader_msgs::addObjects srv;
-    object_loader_msgs::object obj;
+    object_loader_msgs::AddObjects srv;
+    object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
     int obj_conn_pos = current_path->getConnections().size()/2;

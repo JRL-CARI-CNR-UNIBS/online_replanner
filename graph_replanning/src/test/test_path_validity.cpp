@@ -21,7 +21,7 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <rviz_visual_tools/rviz_visual_tools.h>
 #include <eigen_conversions/eigen_msg.h>
-#include <object_loader_msgs/addObjects.h>
+#include <object_loader_msgs/AddObjects.h>
 #include <rosparam_utilities/rosparam_utilities.h>
 
 
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     disp.displayNode(std::make_shared<pathplan::Node>(current_configuration),"pathplan",marker_color_sphere_actual);
 
     // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
-    ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::addObjects>("add_object_to_scene");
+    ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
 
     if (!add_obj.waitForExistence(ros::Duration(10)))
     {
@@ -153,8 +153,8 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    object_loader_msgs::addObjects srv;
-    object_loader_msgs::object obj;
+    object_loader_msgs::AddObjects srv;
+    object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
     int obj_conn_pos = idx; // current_path->getConnections().size()/2;

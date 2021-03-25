@@ -6,8 +6,8 @@
 #include <graph_replanning/replanner.h>
 #include <graph_core/parallel_moveit_collision_checker.h>
 #include <moveit_planning_helper/spline_interpolator.h>
-#include <object_loader_msgs/addObjects.h>
-#include <object_loader_msgs/removeObjects.h>
+#include <object_loader_msgs/AddObjects.h>
+#include <object_loader_msgs/RemoveObjects.h>
 #include <subscription_notifier/subscription_notifier.h>
 #include <thread>
 #include <mutex>

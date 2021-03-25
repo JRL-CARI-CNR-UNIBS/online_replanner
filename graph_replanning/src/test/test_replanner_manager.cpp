@@ -66,11 +66,20 @@ int main(int argc, char **argv)
     test="noTest";
   }
 
-  std::vector<double> start_configuration;
-  if (!nh.getParam("start_configuration",start_configuration))
+  bool get_real_start_pos;
+  if(!nh.getParam("get_real_start_pos",get_real_start_pos))
   {
-    ROS_ERROR("start_configuration not set, exit");
-    return 0;
+    get_real_start_pos = false;
+  }
+
+  std::vector<double> start_configuration;
+  if(!get_real_start_pos)
+  {
+    if (!nh.getParam("start_configuration",start_configuration))
+    {
+      ROS_ERROR("start_configuration not set, exit");
+      return 0;
+    }
   }
 
   std::vector<double> stop_configuration;
@@ -115,7 +124,10 @@ int main(int argc, char **argv)
       }
     }
 
-    Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
+    Eigen::VectorXd start_conf;
+    if(get_real_start_pos) planning_scene->getCurrentState().copyJointGroupPositions(joint_model_group,start_configuration);
+    start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
+
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
     pathplan::NodePtr start_node = std::make_shared<pathplan::Node>(start_conf);
 
@@ -123,10 +135,10 @@ int main(int argc, char **argv)
     pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name, checker_resolution);
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::addObjects>("add_object_to_scene");
-    ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::removeObjects>("remove_object_from_scene");
-    object_loader_msgs::addObjects add_srv;
-    object_loader_msgs::removeObjects remove_srv;
+    ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
+    ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
+    object_loader_msgs::AddObjects add_srv;
+    object_loader_msgs::RemoveObjects remove_srv;
 
     if(test_name == "sharework")
     {
@@ -135,7 +147,7 @@ int main(int argc, char **argv)
         ROS_FATAL("srv not found");
         return 1;
       }
-      object_loader_msgs::object obj;
+      object_loader_msgs::Object obj;
       obj.object_type="scatola";
 
       obj.pose.pose.position.x = 1.0;

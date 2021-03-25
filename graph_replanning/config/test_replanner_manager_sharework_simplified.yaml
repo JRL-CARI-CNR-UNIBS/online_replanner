@@ -10,8 +10,10 @@ collision_checker_thread_frequency: 30
 spawn_objs: true
 display_timing_warning: true
 display_replanning_success: true
+read_real_joints_values: true
 scaling: 0.7
 
+get_real_start_pos: true
 start_configuration: [1.5, 0.0, -0.7, 0.0, 1.5, 0.0]
 stop_configuration: [0.5, 0.0, -0.7, 0.0, 1.5, 0.0]
 #start_configuration: 1.9116676305618414, -1.2818443792424408, 1.4909049355133048, -1.7995697939246473, 1.6242242845419699, -0.2917314270181776] #[1.0, 0.0, -2.5, -0.5, -1.5, 1.5]

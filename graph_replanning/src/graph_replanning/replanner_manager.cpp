@@ -13,6 +13,10 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
   subscribeTopicsAndServices();
   fromParam();
   attributeInitialization();
+
+  ROS_ERROR("KILL PUBLISHER (ROSNODE KILL JOINT_STATE_PUBLISHER)");
+  ros::Duration(5).sleep();
+
 }
 
 
@@ -32,7 +36,7 @@ void ReplannerManager::fromParam()
   if(!nh_.getParam("checker_resolution",checker_resol_)) checker_resol_ = 0.05;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_)) display_timing_warning_ = false;
   if(!nh_.getParam("display_replanning_success",display_replanning_success_)) display_replanning_success_ = false;
-  if(!nh_.getParam("read_real_joints_values_",read_real_joints_values_)) read_real_joints_values_ = false;
+  if(!nh_.getParam("read_real_joints_values",read_real_joints_values_)) read_real_joints_values_ = false;
 }
 
 void ReplannerManager::attributeInitialization()
@@ -93,8 +97,8 @@ void ReplannerManager::attributeInitialization()
   }
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,7, checker_resol_);
-  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,7, checker_resol_);
+  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_);
+  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
   //checker_thread_cc_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_);
   //checker_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_);
 
@@ -155,8 +159,8 @@ void ReplannerManager::subscribeTopicsAndServices()
   start_log_ = nh_.serviceClient<std_srvs::Empty> ("/start_log");
   stop_log_  = nh_.serviceClient<std_srvs::Empty> ("/stop_log");
 
-  add_obj_ = nh_.serviceClient<object_loader_msgs::addObjects>("/add_object_to_scene");
-  remove_obj_ = nh_.serviceClient<object_loader_msgs::removeObjects>("/remove_object_from_scene");
+  add_obj_ = nh_.serviceClient<object_loader_msgs::AddObjects>("/add_object_to_scene");
+  remove_obj_ = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene");
   if (!add_obj_.waitForExistence(ros::Duration(10)))
   {
     ROS_ERROR("unable to connect to /add_object_to_scene");
@@ -216,7 +220,13 @@ void ReplannerManager::replanningThread()
       std::vector<pathplan::PathPtr> other_paths_copy;
       for(const pathplan::PathPtr path:other_paths_) other_paths_copy.push_back(path->clone());
 
+      trj_mtx_.lock();
       pos_closest_obs_from_goal_repl_ = pos_closest_obs_from_goal_check_;
+      trj_mtx_.unlock();
+
+      replanner_mtx_.lock();
+      emergency_stop_ = false;  //reset emergency stop (if at the previous iteration it was set, informedOnlineRepl was stopped and a this new iteration can be reset)
+      replanner_mtx_.unlock();
 
       replanner_mtx_.lock();
       if(current_path_copy->findConnection(configuration_replan_) == NULL)
@@ -254,15 +264,13 @@ void ReplannerManager::replanningThread()
       old_path_obstructed = path_obstructed_;
       checker_mtx_.unlock();
 
-      replanner_mtx_.lock();
-      emergency_stop_ = false;  //reset emergency stop (if at the previous iteration it was set, informedOnlineRepl was stopped and a this new iteration can be reset)
-      replanner_mtx_.unlock();
-
       planning_mtx_.lock();
       replanning_ = true;
+
       ros::WallTime tic_rep=ros::WallTime::now();
       success =  replanner_->informedOnlineReplanning(2,1,time_informedOnlineRepl);
       ros::WallTime toc_rep=ros::WallTime::now();
+
       replanning_ = false;
       planning_mtx_.unlock();
 
@@ -400,8 +408,8 @@ void ReplannerManager::collisionCheckThread()
         replanner_mtx_.lock();
         //replanner_->setEmergencyStop();
         emergency_stop_ = true;
-        replanner_mtx_.unlock();
         //ROS_WARN("EMERGENCY STOP!");
+        replanner_mtx_.unlock();
       }
     }
     checker_mtx_.unlock();
@@ -441,7 +449,7 @@ bool ReplannerManager::trajectoryExecutionThread()
 
   ros::Rate lp(trj_execution_thread_frequency_);
 
-  while (ros::ok() && !stop_)
+  while(ros::ok() && !stop_)
   {
     ros::WallTime tic_tot = ros::WallTime::now();
 
@@ -451,11 +459,17 @@ bool ReplannerManager::trajectoryExecutionThread()
 
     double scaling = 1.0;
     if(read_real_joints_values_)
-    {
+    {      
       if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_1_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_2_sub_->waitForANewData(ros::Duration(0.002)))
       {
-        scaling = speed_ovr_sub_->getData().data*safe_ovr_1_sub_->getData().data*safe_ovr_2_sub_->getData().data;  //Se non viene pubblicato nulla?
+        scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);  //Se non viene pubblicato nulla?
       }
+
+      /*if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)))
+      {
+        scaling = ((double) speed_ovr_sub_->getData().data/100.0);
+        //ROS_INFO_STREAM("SCALING-->"<<scaling);
+      }*/
     }
     else
     {
@@ -463,6 +477,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     }
 
     t_+= scaling*dt_;
+    ROS_INFO_STREAM("scaling dt: "<<scaling*dt_);
     interpolator_.interpolate(ros::Duration(t_),pnt_);
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
@@ -640,8 +655,8 @@ void ReplannerManager::displayThread()
 
 void ReplannerManager::spawnObjects()
 {
-  object_loader_msgs::addObjects srv_add_object;
-  object_loader_msgs::removeObjects srv_remove_object;
+  object_loader_msgs::AddObjects srv_add_object;
+  object_loader_msgs::RemoveObjects srv_remove_object;
 
   ros::Rate lp(0.5*trj_execution_thread_frequency_);
 
@@ -669,7 +684,7 @@ void ReplannerManager::spawnObjects()
       {
         ROS_FATAL("srv not found");
       }
-      object_loader_msgs::object obj;
+      object_loader_msgs::Object obj;
       obj.object_type="scatola";
 
       int obj_conn_pos;
