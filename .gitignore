@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+*.txt.user
+*.txt.user*
+*kdev4*
