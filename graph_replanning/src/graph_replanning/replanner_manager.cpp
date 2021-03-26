@@ -445,8 +445,13 @@ bool ReplannerManager::trajectoryExecutionThread()
 
   ros::Rate lp(trj_execution_thread_frequency_);
 
-  while(ros::ok() && !stop_)
+  while(!stop_)
   {
+    if (!ros::ok())
+    {
+      stop_=true;
+      break;
+    }
     ros::WallTime tic_tot = ros::WallTime::now();
 
     replanner_mtx_.lock();

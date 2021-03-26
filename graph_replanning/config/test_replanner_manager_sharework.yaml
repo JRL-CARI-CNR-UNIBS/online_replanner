@@ -14,9 +14,9 @@ read_real_joints_values: true
 scaling: 0.3
 
 get_real_start_pos: false
-start_configuration: [2.5, -1.0, 1.0, 0.0, 1.57, 0.0]
+start_configuration:  [2.0927252769470215, -1.2914326947978516, 1.886576000844137, -2.2254587612547816, 1.5417447090148926, -0.9218266646014612]
 stop_configuration: [0.8, -1.57, 1.57, 0.0, 1.57, 0.0]
 init_test: 0
-end_test: 10
+end_test: 1
 opt_path: true
 starting_obs_pos: [0.6,0.0,1.5]
