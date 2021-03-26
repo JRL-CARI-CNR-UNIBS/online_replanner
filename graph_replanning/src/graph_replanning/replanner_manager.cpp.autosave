@@ -456,6 +456,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     double scaling = 1.0;
     if(read_real_joints_values_)
     {      
+      
       //if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_1_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_2_sub_->waitForANewData(ros::Duration(0.002)))
       //{
         scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);  //Se non viene pubblicato nulla?

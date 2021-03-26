@@ -142,17 +142,23 @@ int main(int argc, char **argv)
 
     if(test_name == "sharework")
     {
+      std::vector<double> starting_obs_pos;
+      if (!nh.getParam("starting_obs_pos",starting_obs_pos))
+      {
+        starting_obs_pos = {1.0,0.0,1.5};
+      }
+
       if (!add_obj.waitForExistence(ros::Duration(10)))
       {
         ROS_FATAL("srv not found");
         return 1;
       }
       object_loader_msgs::Object obj;
-      obj.object_type="scatola";
+      obj.object_type="big_box_sharework";
 
-      obj.pose.pose.position.x = 1.0;
-      obj.pose.pose.position.y = 0.0;
-      obj.pose.pose.position.z = 1.5;
+      obj.pose.pose.position.x = starting_obs_pos.at(0);
+      obj.pose.pose.position.y = starting_obs_pos.at(1);
+      obj.pose.pose.position.z = starting_obs_pos.at(2);
 
       obj.pose.pose.orientation.x = 0.0;
       obj.pose.pose.orientation.y = 0.0;
@@ -217,6 +223,9 @@ int main(int argc, char **argv)
     // ///////////////////////////////////////////////////////////////////////////
     if(test_name == "sharework")
     {
+      ROS_INFO("Do you see the object?");
+      ros::Duration(5).sleep();
+
       if (!remove_obj.waitForExistence(ros::Duration(10)))
       {
         ROS_FATAL("srv not found");

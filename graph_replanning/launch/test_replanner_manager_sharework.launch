@@ -15,8 +15,8 @@
         output="screen"
         launch-prefix="gdb -ex run --args" >
 
-<!--<remap from="joint_target" to="/manipulator/joint_target"/>-->
-<remap from="joint_target" to="joint_states"/>
+<remap from="joint_target" to="/manipulator/joint_target"/>
+<!--<remap from="joint_target" to="joint_states"/>-->
     </node>
 
 </launch>
