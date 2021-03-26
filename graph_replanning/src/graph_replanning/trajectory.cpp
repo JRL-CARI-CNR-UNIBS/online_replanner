@@ -26,8 +26,8 @@ PathPtr Trajectory::computeBiRRTPath(const NodePtr &start_node, NodePtr &goal_no
 {
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
 
-  //pathplan::BiRRT solver(metrics, checker, sampler);
-  pathplan::MultigoalSolver solver(metrics, checker, sampler);
+  pathplan::BiRRT solver(metrics, checker, sampler);
+  //pathplan::MultigoalSolver solver(metrics, checker, sampler);
   solver.config(nh_);
   solver.addStart(start_node);
   solver.addGoal(goal_node);

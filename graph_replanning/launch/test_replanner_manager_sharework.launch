@@ -2,8 +2,8 @@
 <launch>
 
   <rosparam command="load" file="$(find graph_replanning)/config/object_test_replanner.yaml"/>
-  <rosparam command="load" file="$(find graph_replanning)/config/test_replanner_manager_sharework_simplified.yaml"/>
-  <include file="$(find sharework_cembre_simplified_moveit_config)/launch/demo.launch"/>
+  <rosparam command="load" file="$(find graph_replanning)/config/test_replanner_manager_sharework.yaml"/>
+  <include file="$(find sharework_cembre_moveit_config)/launch/demo.launch"/>
 <!--  <include file="$(find sharework_cembre_configurations)/launch/fake.launch"/>-->
    <node pkg="object_loader" name="context_manager_node" type="context_manager_node" respawn="true" output="screen"/>-->
 

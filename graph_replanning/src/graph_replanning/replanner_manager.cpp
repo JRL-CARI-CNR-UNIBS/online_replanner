@@ -97,8 +97,8 @@ void ReplannerManager::attributeInitialization()
   }
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_);
-  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
+  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,10, checker_resol_);
+  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,10, checker_resol_);
   //checker_thread_cc_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_);
   //checker_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_);
 
@@ -477,7 +477,6 @@ bool ReplannerManager::trajectoryExecutionThread()
     }
 
     t_+= scaling*dt_;
-    ROS_INFO_STREAM("scaling dt: "<<scaling*dt_);
     interpolator_.interpolate(ros::Duration(t_),pnt_);
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
