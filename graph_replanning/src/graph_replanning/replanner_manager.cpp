@@ -32,7 +32,7 @@ void ReplannerManager::fromParam()
   if(!nh_.getParam("checker_resolution",checker_resol_)) checker_resol_ = 0.05;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_)) display_timing_warning_ = false;
   if(!nh_.getParam("display_replanning_success",display_replanning_success_)) display_replanning_success_ = false;
-  if(!nh_.getParam("read_real_joints_values",read_real_joints_values_)) read_real_joints_values_ = false;
+  if(!nh_.getParam("read_safe_scaling",read_safe_scaling_)) read_safe_scaling_ = false;
 }
 
 void ReplannerManager::attributeInitialization()
@@ -459,7 +459,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     real_time_ += dt_;
 
     double scaling = 1.0;
-    if(read_real_joints_values_)
+    if(read_safe_scaling_)
     {      
 
       //if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_1_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_2_sub_->waitForANewData(ros::Duration(0.002)))

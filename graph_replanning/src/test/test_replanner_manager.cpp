@@ -99,13 +99,36 @@ int main(int argc, char **argv)
   for(int n_iter = init_test; n_iter<end_test; n_iter++)
   {
     ROS_WARN("ITER n: %d",n_iter+1);
-    ros::Duration(1).sleep();
 
     moveit::planning_interface::MoveGroupInterface move_group(group_name);
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
     robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
     planning_scene::PlanningScenePtr planning_scene = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
 
+    //ROS_WARN("MOVE THE ROBOT");
+    //ros::Duration(60).sleep();
+    // //////////////////////////////UPDATING PLANNING SCENE//////////////////////////////////////////////
+    ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+    moveit_msgs::GetPlanningScene ps_srv;
+
+    if (!ps_client.waitForExistence(ros::Duration(10)))
+    {
+      ROS_ERROR("unable to connect to /get_planning_scene");
+      return 1;
+    }
+
+    if (!ps_client.call(ps_srv))
+    {
+      ROS_ERROR("call to srv not ok");
+      return 1;
+    }
+
+    if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+    {
+      ROS_ERROR("unable to update planning scene");
+      return 1;
+    }
+    // ////////////////////////////////////////////////////////////////////////////////////////////////
 
     const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(group_name);
     std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
@@ -186,9 +209,6 @@ int main(int argc, char **argv)
         }
       }
     }
-    // //////////////////////////////UPDATING PLANNING SCENE//////////////////////////////////////////////
-    ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
-    moveit_msgs::GetPlanningScene ps_srv;
 
     if (!ps_client.waitForExistence(ros::Duration(10)))
     {
@@ -207,6 +227,7 @@ int main(int argc, char **argv)
       ROS_ERROR("unable to update planning scene");
       return 1;
     }
+
     // //////////////////////////////////////PATH PLAN//////////////////////////////////////////////////////////////////////////
     pathplan::PathPtr path = NULL;
     pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(path,nh,planning_scene,group_name,base_link,last_link);
@@ -223,50 +244,47 @@ int main(int argc, char **argv)
     // ///////////////////////////////////////////////////////////////////////////
     if(test_name == "sharework")
     {
-      ROS_INFO("Do you see the object?");
-      ros::Duration(5).sleep();
-
-      if (!remove_obj.waitForExistence(ros::Duration(10)))
+      if(!remove_obj.waitForExistence(ros::Duration(10)))
       {
         ROS_FATAL("srv not found");
       }
-      if (!remove_obj.call(remove_srv))
+      if(!remove_obj.call(remove_srv))
       {
         ROS_ERROR("call to srv not ok");
       }
-      if (!remove_srv.response.success)
+      if(!remove_srv.response.success)
       {
         ROS_ERROR("srv error");
       }
 
       moveit_msgs::GetPlanningScene ps_srv;
 
-      if (!ps_client.call(ps_srv))
+      if(!ps_client.call(ps_srv))
       {
         ROS_ERROR("call to srv not ok");
         return 1;
       }
 
-      if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+      if(!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
       {
         ROS_ERROR("unable to update planning scene");
         return 1;
       }
     }
 
-    if (!ps_client.waitForExistence(ros::Duration(10)))
+    if(!ps_client.waitForExistence(ros::Duration(10)))
     {
       ROS_ERROR("unable to connect to /get_planning_scene");
       return 1;
     }
 
-    if (!ps_client.call(ps_srv))
+    if(!ps_client.call(ps_srv))
     {
       ROS_ERROR("call to srv not ok");
       return 1;
     }
 
-    if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+    if(!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
     {
       ROS_ERROR("unable to update planning scene");
       return 1;
@@ -281,7 +299,7 @@ int main(int argc, char **argv)
     for(const pathplan::PathPtr& path:other_paths) ROS_INFO_STREAM("cost path: "<<path->cost());
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
-    ros::Duration(5).sleep();
+    ros::Duration(0.5).sleep();
     replanner_manager->trajectoryExecutionThread();
   }
 
