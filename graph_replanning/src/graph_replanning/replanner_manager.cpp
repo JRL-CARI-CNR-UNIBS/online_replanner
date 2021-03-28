@@ -461,17 +461,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     double scaling = 1.0;
     if(read_safe_scaling_)
     {      
-
-      //if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_1_sub_->waitForANewData(ros::Duration(0.002)) && safe_ovr_2_sub_->waitForANewData(ros::Duration(0.002)))
-      //{
-        scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);  //Se non viene pubblicato nulla?
-      //}
-
-      /*if(speed_ovr_sub_->waitForANewData(ros::Duration(0.002)))
-      {
-        scaling = ((double) speed_ovr_sub_->getData().data/100.0);
-        //ROS_INFO_STREAM("SCALING-->"<<scaling);
-      }*/
+        scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
     }
     else
     {
@@ -704,7 +694,7 @@ void ReplannerManager::spawnObjects()
         replanner_mtx_.lock();
         int size = replanner_->getCurrentPath()->getConnections().size();
         replanner_mtx_.unlock();
-        obj_conn_pos = size-1;
+        obj_conn_pos = size-3;
       }
       else
       {
@@ -749,8 +739,8 @@ void ReplannerManager::spawnObjects()
         obj_conn = replanner_->getCurrentPath()->getConnections().at(obj_conn_pos);
         obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
-        //obj_pos =  (obj_child->getConfiguration() +  obj_parent->getConfiguration())/2;
-        obj_pos =  obj_parent->getConfiguration()+(obj_child->getConfiguration() -  obj_parent->getConfiguration())*0.2;
+        obj_pos =  (obj_child->getConfiguration() +  obj_parent->getConfiguration())/2;
+        //obj_pos =  obj_parent->getConfiguration()+(obj_child->getConfiguration() -  obj_parent->getConfiguration())*0.2;
         replanner_mtx_.unlock();
       }
 

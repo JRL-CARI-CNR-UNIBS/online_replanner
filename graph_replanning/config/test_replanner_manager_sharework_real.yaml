@@ -7,7 +7,6 @@ dt_replan_relaxed: 0.120
 checker_resolution: 0.05
 trj_execution_thread_frequency: 100
 collision_checker_thread_frequency: 30
-spawn_objs: true
 init_test: 0
 end_test: 1
 opt_path: true
@@ -20,4 +19,4 @@ checker_resolution: 0.05
 start_configuration:  [2.0927252769470215, -1.2914326947978516, 1.886576000844137, -2.2254587612547816, 1.5417447090148926, -0.9218266646014612]
 stop_configuration: [0.8, -1.57, 1.57, 0.0, 1.57, 0.0]
 read_safe_scaling: false
-get_real_start_pos: true
+get_real_start_pos: false

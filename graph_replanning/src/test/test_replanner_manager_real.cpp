@@ -1,16 +1,21 @@
 #include <ros/ros.h>
 #include <graph_replanning/replanner_manager.h>
+//#include <configuration_msgs/StartConfiguration.h>
+//#include <configuration_msgs/StopConfiguration.h>
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "node_replanner");
+  ros::init(argc, argv, "node_replanner_manager_real");
   ros::NodeHandle nh;
   ros::AsyncSpinner spinner(4);
   spinner.start();
 
+  //ros::ServiceClient configuration_client=nh.serviceClient<configuration_msgs::StartConfiguration>("/configuration_manager/start_configuration");
+  //ros::ServiceClient stop_configuration_client=nh.serviceClient<configuration_msgs::StopConfiguration>("/configuration_manager/stop_configuration");
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
   ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
+
 
   bool optimize_path;
   if (!nh.getParam("opt_path", optimize_path))
@@ -100,18 +105,22 @@ int main(int argc, char **argv)
 
   for(int n_iter = init_test; n_iter<end_test; n_iter++)
   {
+    if(!ros::ok()) break;
+
     ROS_WARN("ITER n: %d",n_iter+1);
+
+    //configuration_msgs::StartConfiguration srv_start_conf;
+    //srv_start_conf.request.start_configuration="feedforward";
+    //srv_start_conf.request.strictness=1;
+    //configuration_client.call(srv_start);
+    //ros::Duration(2).sleep();
+    //configuration_msgs::StopConfiguration srv_stop_conf;
+    //srv_stop_conf.request.strictness=1;
 
     moveit::planning_interface::MoveGroupInterface move_group(group_name);
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
     robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
     planning_scene::PlanningScenePtr planning_scene = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
-
-    if(get_real_start_pos)
-    {
-      ROS_WARN("MOVE THE ROBOT TO STARTING POSITION");
-      ros::Duration(60).sleep();
-    }
 
     const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(group_name);
     std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
@@ -132,6 +141,21 @@ int main(int argc, char **argv)
 
     Eigen::VectorXd start_conf;
     if(get_real_start_pos) move_group.getCurrentState()->copyJointGroupPositions(joint_model_group,start_configuration);
+    else
+    {
+      moveit::planning_interface::MoveGroupInterface::Plan plan;
+
+      move_group.setStartState(*move_group.getCurrentState());
+      move_group.setJointValueTarget(start_configuration);
+
+      bool success = (move_group.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+      if(!success)
+      {
+        ROS_ERROR("Planning to start configuration failed");
+        return 0;
+      }
+      move_group.execute(plan);
+    }
     start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
 
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
@@ -281,7 +305,6 @@ int main(int argc, char **argv)
     for(const pathplan::PathPtr& path:other_paths) ROS_INFO_STREAM("cost path: "<<path->cost());
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
-    ros::Duration(0.5).sleep();
     replanner_manager->trajectoryExecutionThread();
   }
 
