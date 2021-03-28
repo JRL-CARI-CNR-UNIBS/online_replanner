@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <graph_replanning/replanner_manager.h>
-//#include <configuration_msgs/StartConfiguration.h>
-//#include <configuration_msgs/StopConfiguration.h>
+#include <configuration_msgs/StartConfiguration.h>
+#include <configuration_msgs/StopConfiguration.h>
 
 int main(int argc, char **argv)
 {
@@ -10,8 +10,8 @@ int main(int argc, char **argv)
   ros::AsyncSpinner spinner(4);
   spinner.start();
 
-  //ros::ServiceClient configuration_client=nh.serviceClient<configuration_msgs::StartConfiguration>("/configuration_manager/start_configuration");
-  //ros::ServiceClient stop_configuration_client=nh.serviceClient<configuration_msgs::StopConfiguration>("/configuration_manager/stop_configuration");
+  ros::ServiceClient configuration_client=nh.serviceClient<configuration_msgs::StartConfiguration>("/configuration_manager/start_configuration");
+  ros::ServiceClient stop_configuration_client=nh.serviceClient<configuration_msgs::StopConfiguration>("/configuration_manager/stop_configuration");
   ros::ServiceClient ps_client=nh.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
   ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
@@ -109,11 +109,11 @@ int main(int argc, char **argv)
 
     ROS_WARN("ITER n: %d",n_iter+1);
 
-    //configuration_msgs::StartConfiguration srv_start_conf;
-    //srv_start_conf.request.start_configuration="feedforward";
-    //srv_start_conf.request.strictness=1;
-    //configuration_client.call(srv_start);
-    //ros::Duration(2).sleep();
+    configuration_msgs::StartConfiguration srv_start_conf;
+    srv_start_conf.request.start_configuration="feedforward";
+    srv_start_conf.request.strictness=1;
+    configuration_client.call(srv_start_conf);
+    ros::Duration(2).sleep();
     //configuration_msgs::StopConfiguration srv_stop_conf;
     //srv_stop_conf.request.strictness=1;
 

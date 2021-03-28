@@ -10,8 +10,8 @@ collision_checker_thread_frequency: 30
 init_test: 0
 end_test: 1
 opt_path: true
-display_timing_warning: true
-display_replanning_success: true
+display_timing_warning: false
+display_replanning_success: false
 starting_obs_pos: [0.6,0.0,1.5]
 
 scaling: 0.7
