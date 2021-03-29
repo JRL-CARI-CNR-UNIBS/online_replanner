@@ -17,6 +17,7 @@ int main(int argc, char **argv)
   ros::ServiceClient remove_obj=nh.serviceClient<object_loader_msgs::RemoveObjects>("remove_object_from_scene");
 
 
+  ros::Publisher time_pub=nh.advertise<std_msgs::Float64>("exec_time",1);
   bool optimize_path;
   if (!nh.getParam("opt_path", optimize_path))
   {
@@ -109,8 +110,9 @@ int main(int argc, char **argv)
 
     ROS_WARN("ITER n: %d",n_iter+1);
 
+    ros::Duration(0.5).sleep();
     configuration_msgs::StartConfiguration srv_start_conf;
-    srv_start_conf.request.start_configuration="feedforward";
+    srv_start_conf.request.start_configuration="trj_tracker";
     srv_start_conf.request.strictness=1;
     configuration_client.call(srv_start_conf);
     ros::Duration(2).sleep();
@@ -155,7 +157,15 @@ int main(int argc, char **argv)
         return 0;
       }
       move_group.execute(plan);
+      ros::Duration(0.2).sleep();
     }
+
+
+    srv_start_conf.request.start_configuration="feedforward";
+    srv_start_conf.request.strictness=1;
+    configuration_client.call(srv_start_conf);
+    ros::Duration(2).sleep();
+
     start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
 
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
@@ -238,13 +248,13 @@ int main(int argc, char **argv)
     pathplan::PathPtr path = NULL;
     pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(path,nh,planning_scene,group_name,base_link,last_link);
 
-    std::vector<pathplan::PathPtr> path_vector;
+    std::map<double,pathplan::PathPtr> path_vector;
 
     for (unsigned int i =0; i<4; i++)
     {
       pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
       pathplan::PathPtr solution = trajectory->computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, optimize_path);
-      path_vector.push_back(solution);
+      path_vector.insert(std::pair<double,pathplan::PathPtr>(solution->cost(),solution));
     }
 
     // ///////////////////////////////////////////////////////////////////////////
@@ -298,14 +308,27 @@ int main(int argc, char **argv)
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    pathplan::PathPtr current_path = path_vector.front();
-    std::vector<pathplan::PathPtr> other_paths = {path_vector.at(1),path_vector.at(2),path_vector.at(3)};
+    pathplan::PathPtr current_path;
+    std::vector<pathplan::PathPtr> other_paths;
 
-    ROS_INFO_STREAM("cost current path: "<<current_path->cost());
-    for(const pathplan::PathPtr& path:other_paths) ROS_INFO_STREAM("cost path: "<<path->cost());
+    bool first=true;
+    for(const std::pair<double,pathplan::PathPtr>& path_pair: path_vector)
+    {
+      ROS_INFO_STREAM("cost path: "<<path_pair.second->cost());
+      if (first)
+        current_path=path_pair.second;
+      else
+        other_paths.push_back(path_pair.second);
+      first=false;
+    }
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
+    ros::WallTime t0=ros::WallTime::now();
     replanner_manager->trajectoryExecutionThread();
+    ros::WallTime t1=ros::WallTime::now();
+    std_msgs::Float64 time_msg;
+    time_msg.data=(t1-t0).toSec();
+    time_pub.publish(time_msg);
   }
 
   return 0;

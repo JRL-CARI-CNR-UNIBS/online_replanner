@@ -4,7 +4,7 @@
   <rosparam command="load" file="$(find graph_replanning)/config/object_test_replanner.yaml"/>
   <rosparam command="load" file="$(find graph_replanning)/config/test_replanner_manager_sharework_real.yaml"/>
   <!--<include file="$(find sharework_cembre_moveit_config)/launch/demo.launch"/>-->
-  <include file="$(find sharework_cembre_configurations)/launch/fake.launch"/>
+<!--  <include file="$(find sharework_cembre_configurations)/launch/fake.launch"/>-->
    <!--<node pkg="object_loader" name="context_manager_node" type="context_manager_node" respawn="true" output="screen"/>
 
    <node pkg="object_loader" name="scene_spawner" type="scene_spawner" output="screen"/>-->
@@ -12,10 +12,10 @@
   <node name="test_replanner_manager_real"
         pkg="graph_replanning"
         type="test_replanner_manager_real"
-        output="screen"
-        launch-prefix="gdb -ex run --args" >
+        output="screen" >
 
 <remap from="joint_target" to="/manipulator/joint_target"/>
+<!--<remap from="unscaled_joint_target" to="/ur10e_hw/thor_prefilter_planner/unscaled_joint_target/joint_states"/>-->
 <!--<remap from="joint_target" to="joint_states"/>-->
     </node>
 
