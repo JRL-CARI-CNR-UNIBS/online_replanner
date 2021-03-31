@@ -77,6 +77,11 @@ protected:
   sensor_msgs::JointState new_joint_state_;
   robot_state::RobotStatePtr kinematic_state_;
 
+  std::thread display_thread_;
+  std::thread spawn_obj_thread_;
+  std::thread replanning_thread_;
+  std::thread col_check_thread_;
+
   std::mutex planning_mtx_;
   std::mutex trj_mtx_;
   std::mutex checker_mtx_;
@@ -100,6 +105,7 @@ protected:
   ros::ServiceClient remove_obj_;
   ros::ServiceClient start_log_;
   ros::ServiceClient stop_log_;
+  std_srvs::Empty srv_log_;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -116,6 +122,8 @@ public:
   void displayThread();
   void spawnObjects();
   bool trajectoryExecutionThread();
+  bool start();
+  bool startWithoutReplanning();
 };
 
 }

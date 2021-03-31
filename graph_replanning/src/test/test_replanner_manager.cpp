@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
     ros::Duration(0.5).sleep();
-    replanner_manager->trajectoryExecutionThread();
+    replanner_manager->start();
   }
 
   return 0;

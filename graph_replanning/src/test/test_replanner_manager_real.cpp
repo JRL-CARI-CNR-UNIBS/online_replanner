@@ -18,6 +18,7 @@ int main(int argc, char **argv)
 
 
   ros::Publisher time_pub=nh.advertise<std_msgs::Float64>("exec_time",1);
+  ros::Publisher time_pub_areas=nh.advertise<std_msgs::Float64>("exec_time_areas",1);
   bool optimize_path;
   if (!nh.getParam("opt_path", optimize_path))
   {
@@ -116,8 +117,6 @@ int main(int argc, char **argv)
     srv_start_conf.request.strictness=1;
     configuration_client.call(srv_start_conf);
     ros::Duration(2).sleep();
-    //configuration_msgs::StopConfiguration srv_stop_conf;
-    //srv_stop_conf.request.strictness=1;
 
     moveit::planning_interface::MoveGroupInterface move_group(group_name);
     robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
@@ -160,7 +159,6 @@ int main(int argc, char **argv)
       ros::Duration(0.2).sleep();
     }
 
-
     srv_start_conf.request.start_configuration="feedforward";
     srv_start_conf.request.strictness=1;
     configuration_client.call(srv_start_conf);
@@ -179,7 +177,7 @@ int main(int argc, char **argv)
     object_loader_msgs::AddObjects add_srv;
     object_loader_msgs::RemoveObjects remove_srv;
 
-    if(test_name == "sharework")
+    if(test_name == "sharework" &&  n_iter == init_test)
     {
       std::vector<double> starting_obs_pos;
       if (!nh.getParam("starting_obs_pos",starting_obs_pos))
@@ -250,15 +248,18 @@ int main(int argc, char **argv)
 
     std::map<double,pathplan::PathPtr> path_vector;
 
-    for (unsigned int i =0; i<4; i++)
+    if( n_iter == init_test)
     {
-      pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
-      pathplan::PathPtr solution = trajectory->computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, optimize_path);
-      path_vector.insert(std::pair<double,pathplan::PathPtr>(solution->cost(),solution));
+      for (unsigned int i =0; i<4; i++)
+      {
+        pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
+        pathplan::PathPtr solution = trajectory->computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, optimize_path);
+        path_vector.insert(std::pair<double,pathplan::PathPtr>(solution->cost(),solution));
+      }
     }
 
     // ///////////////////////////////////////////////////////////////////////////
-    if(test_name == "sharework")
+    if(test_name == "sharework" &&  n_iter == init_test)
     {
       if(!remove_obj.waitForExistence(ros::Duration(10)))
       {
@@ -286,27 +287,26 @@ int main(int argc, char **argv)
         ROS_ERROR("unable to update planning scene");
         return 1;
       }
-    }
 
-    if(!ps_client.waitForExistence(ros::Duration(10)))
-    {
-      ROS_ERROR("unable to connect to /get_planning_scene");
-      return 1;
-    }
+      if(!ps_client.waitForExistence(ros::Duration(10)))
+      {
+        ROS_ERROR("unable to connect to /get_planning_scene");
+        return 1;
+      }
 
-    if(!ps_client.call(ps_srv))
-    {
-      ROS_ERROR("call to srv not ok");
-      return 1;
-    }
+      if(!ps_client.call(ps_srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
 
-    if(!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
-    {
-      ROS_ERROR("unable to update planning scene");
-      return 1;
+      if(!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+      {
+        ROS_ERROR("unable to update planning scene");
+        return 1;
+      }
     }
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
     pathplan::PathPtr current_path;
     std::vector<pathplan::PathPtr> other_paths;
@@ -316,19 +316,69 @@ int main(int argc, char **argv)
     {
       ROS_INFO_STREAM("cost path: "<<path_pair.second->cost());
       if (first)
-        current_path=path_pair.second;
+        current_path=path_pair.second->clone();
       else
-        other_paths.push_back(path_pair.second);
+        other_paths.push_back(path_pair.second->clone());
       first=false;
     }
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
     ros::WallTime t0=ros::WallTime::now();
-    replanner_manager->trajectoryExecutionThread();
+    replanner_manager->start();
     ros::WallTime t1=ros::WallTime::now();
     std_msgs::Float64 time_msg;
     time_msg.data=(t1-t0).toSec();
     time_pub.publish(time_msg);
+
+    // ////////////////////////////////////////////////////////////////////////
+
+    if(!get_real_start_pos)
+    {
+      ROS_WARN("STARTING WITHOUT REPLANNING");
+
+      srv_start_conf.request.start_configuration="trj_tracker";
+      srv_start_conf.request.strictness=1;
+      configuration_client.call(srv_start_conf);
+      ros::Duration(2).sleep();
+
+      moveit::planning_interface::MoveGroupInterface::Plan plan;
+
+      move_group.setStartState(*move_group.getCurrentState());
+      move_group.setJointValueTarget(start_configuration);
+
+      bool success = (move_group.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+      if(!success)
+      {
+        ROS_ERROR("Planning to start configuration failed");
+        return 0;
+      }
+      move_group.execute(plan);
+      ros::Duration(0.2).sleep();
+
+      srv_start_conf.request.start_configuration="feedforward";
+      srv_start_conf.request.strictness=1;
+      configuration_client.call(srv_start_conf);
+      ros::Duration(2).sleep();
+
+      first=true;
+      for(const std::pair<double,pathplan::PathPtr>& path_pair: path_vector)
+      {
+        ROS_INFO_STREAM("cost path: "<<path_pair.second->cost());
+        if (first)
+          current_path=path_pair.second->clone();
+        else
+          other_paths.push_back(path_pair.second->clone());
+        first=false;
+      }
+
+      replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
+      ros::WallTime t2=ros::WallTime::now();
+      replanner_manager->startWithoutReplanning();
+      ros::WallTime t3=ros::WallTime::now();
+      std_msgs::Float64 time_msg_areas;
+      time_msg_areas.data=(t3-t2).toSec();
+      time_pub_areas.publish(time_msg_areas);
+    }
   }
 
   return 0;

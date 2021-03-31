@@ -424,7 +424,26 @@ void ReplannerManager::collisionCheckThread()
   }
 }
 
-bool ReplannerManager::trajectoryExecutionThread()
+bool ReplannerManager::start()
+{
+  start_log_.call(srv_log_);
+
+  target_pub_.publish(new_joint_state_);
+  unscaled_target_pub_.publish(new_joint_state_);
+
+  ROS_WARN("Launching threads..");
+  display_thread_ = std::thread(&ReplannerManager::displayThread, this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
+  if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManager::spawnObjects, this);
+  ros::Duration(0.1).sleep();
+  replanning_thread_ = std::thread(&ReplannerManager::replanningThread, this);
+  col_check_thread_ = std::thread(&ReplannerManager::collisionCheckThread, this);
+
+  bool success = trajectoryExecutionThread();
+
+  return success;
+}
+
+bool ReplannerManager::startWithoutReplanning()
 {
   std_srvs::Empty srv_log;
   start_log_.call(srv_log);
@@ -432,16 +451,18 @@ bool ReplannerManager::trajectoryExecutionThread()
   target_pub_.publish(new_joint_state_);
   unscaled_target_pub_.publish(new_joint_state_);
 
+  ROS_WARN("Launching threads..");
+  display_thread_ = std::thread(&ReplannerManager::displayThread, this);
+
+  bool success = trajectoryExecutionThread();
+
+  return success;
+}
+
+bool ReplannerManager::trajectoryExecutionThread()
+{
   Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
-
-  ROS_WARN("Launching threads..");
-  std::thread display_thread = std::thread(&ReplannerManager::displayThread, this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
-  std::thread spawn_obj_thread;
-  if(spawn_objs_) spawn_obj_thread = std::thread(&ReplannerManager::spawnObjects, this);
-  ros::Duration(1).sleep();
-  std::thread replanning_thread = std::thread(&ReplannerManager::replanningThread, this);
-  std::thread col_check_thread = std::thread(&ReplannerManager::collisionCheckThread, this);
 
   ros::Rate lp(trj_execution_thread_frequency_);
 
@@ -527,12 +548,12 @@ bool ReplannerManager::trajectoryExecutionThread()
   ROS_ERROR("STOP");
   stop_ = true;
 
-  if(replanning_thread.joinable()) replanning_thread.join();
-  if(col_check_thread.joinable()) col_check_thread.join();
-  if(display_thread.joinable()) display_thread.join();
+  if(replanning_thread_.joinable()) replanning_thread_.join();
+  if(col_check_thread_.joinable()) col_check_thread_.join();
+  if(display_thread_.joinable()) display_thread_.join();
   if(spawn_objs_)
   {
-    if(spawn_obj_thread.joinable()) spawn_obj_thread.join();
+    if(spawn_obj_thread_.joinable()) spawn_obj_thread_.join();
   }
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
@@ -553,7 +574,7 @@ bool ReplannerManager::trajectoryExecutionThread()
   time_pub_.publish(fake_data);
   target_pub_.publish(joint_fake);
 
-  stop_log_.call(srv_log);
+  stop_log_.call(srv_log_);
 
   return 1;
 }
