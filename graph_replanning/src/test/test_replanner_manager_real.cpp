@@ -3,6 +3,8 @@
 #include <configuration_msgs/StartConfiguration.h>
 #include <configuration_msgs/StopConfiguration.h>
 
+#include <sound_play/SoundRequest.h>
+
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "node_replanner_manager_real");
@@ -19,6 +21,12 @@ int main(int argc, char **argv)
 
   ros::Publisher time_pub=nh.advertise<std_msgs::Float64>("exec_time",1);
   ros::Publisher time_pub_areas=nh.advertise<std_msgs::Float64>("exec_time_areas",1);
+  ros::Publisher sound_pub=nh.advertise<sound_play::SoundRequest>("/robotsound",1);
+
+  sound_play::SoundRequest sound_msg;
+  sound_msg.command=1;
+  sound_msg.volume=1.0;
+  sound_msg.sound=3;
   bool optimize_path;
   if (!nh.getParam("opt_path", optimize_path))
   {
@@ -155,7 +163,12 @@ int main(int argc, char **argv)
         ROS_ERROR("Planning to start configuration failed");
         return 0;
       }
-      move_group.execute(plan);
+      success = move_group.execute(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS;
+      if (!success)
+      {
+        ROS_ERROR("Execution to start configuration failed");
+        return 0;
+      }
       ros::Duration(0.2).sleep();
     }
 
@@ -323,6 +336,17 @@ int main(int argc, char **argv)
     }
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
+
+
+    sound_msg.sound=3;
+    sound_pub.publish(sound_msg);
+
+    for (int iiii=0;iiii<5;iiii++)
+      ROS_INFO("ENTER!");
+    ros::Duration(10).sleep();
+    sound_msg.sound=4;
+    sound_pub.publish(sound_msg);
+
     ros::WallTime t0=ros::WallTime::now();
     replanner_manager->start();
     ros::WallTime t1=ros::WallTime::now();
@@ -330,10 +354,18 @@ int main(int argc, char **argv)
     time_msg.data=(t1-t0).toSec();
     time_pub.publish(time_msg);
 
-    // ////////////////////////////////////////////////////////////////////////
+
 
     if(!get_real_start_pos)
     {
+      // ////////////////////////////////////////////////////////////////////////
+      for (int iiii=0;iiii<5;iiii++)
+        ROS_INFO("CHANGE TO FIXED AREA SAFETY!");
+      sound_msg.sound=2;
+      sound_pub.publish(sound_msg);
+      ros::Duration(10).sleep();
+
+
       ROS_WARN("STARTING WITHOUT REPLANNING");
 
       srv_start_conf.request.start_configuration="trj_tracker";
@@ -352,7 +384,12 @@ int main(int argc, char **argv)
         ROS_ERROR("Planning to start configuration failed");
         return 0;
       }
-      move_group.execute(plan);
+      success = move_group.execute(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS;
+      if (!success)
+      {
+        ROS_ERROR("Execution to start configuration failed");
+        return 0;
+      }
       ros::Duration(0.2).sleep();
 
       srv_start_conf.request.start_configuration="feedforward";
@@ -372,13 +409,33 @@ int main(int argc, char **argv)
       }
 
       replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
+
+      for (int iiii=0;iiii<5;iiii++)
+        ROS_INFO("ENTER!");
+      sound_msg.sound=3;
+      sound_pub.publish(sound_msg);
+
+      ros::Duration(10).sleep();
+      sound_msg.sound=4;
+      sound_pub.publish(sound_msg);
+
       ros::WallTime t2=ros::WallTime::now();
       replanner_manager->startWithoutReplanning();
       ros::WallTime t3=ros::WallTime::now();
       std_msgs::Float64 time_msg_areas;
       time_msg_areas.data=(t3-t2).toSec();
       time_pub_areas.publish(time_msg_areas);
+
+      // ////////////////////////////////////////////////////////////////////////
+      for (int iiii=0;iiii<5;iiii++)
+        ROS_INFO("CHANGE TO THOR SAFETY!");
+      sound_msg.sound=2;
+      sound_pub.publish(sound_msg);
+
+
     }
+
+
   }
 
   return 0;

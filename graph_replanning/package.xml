@@ -58,6 +58,7 @@
   <depend>moveit_planning_helper</depend>
   <depend>geometry_msgs</depend>
   <depend>configuration_msgs</depend>
+  <depend>sound_play</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

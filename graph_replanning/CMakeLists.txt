@@ -11,11 +11,12 @@ object_loader_msgs
 moveit_planning_helper
 geometry_msgs
 configuration_msgs
+sound_play
 )
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES graph_replanning
-  CATKIN_DEPENDS  graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs configuration_msgs
+  CATKIN_DEPENDS  graph_core roscpp object_loader_msgs moveit_planning_helper geometry_msgs configuration_msgs sound_play
   DEPENDS
   )
 include_directories(
