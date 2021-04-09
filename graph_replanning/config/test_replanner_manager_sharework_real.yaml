@@ -12,7 +12,7 @@ end_test: 1
 opt_path: true
 display_timing_warning: true
 display_replanning_success: true
-starting_obs_pos: [0.6,0.0,1.5]
+starting_obs_pos: [0.6,0.0,1.4]
 
 scaling: 0.7
 checker_resolution: 0.05
