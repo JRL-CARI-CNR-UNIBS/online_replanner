@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(graph_replanning)
 add_compile_options(-std=c++14 -funroll-loops -Wall -Ofast)
-set(CMAKE_BUILD_TYPE Release)
-#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(catkin REQUIRED COMPONENTS
 graph_core
@@ -25,6 +25,7 @@ include_directories(
   )
 add_library(${PROJECT_NAME}
 src/${PROJECT_NAME}/trajectory.cpp
+src/${PROJECT_NAME}/moveit_utils.cpp
 src/${PROJECT_NAME}/replanner.cpp
 src/${PROJECT_NAME}/replanner_manager.cpp
 )

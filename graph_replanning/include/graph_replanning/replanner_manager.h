@@ -29,7 +29,7 @@ protected:
   // To be assigned by the constructor
   PathPtr current_path_;
   std::vector<PathPtr> other_paths_;
-  double trj_execution_thread_frequency_;
+  double trj_exec_thread_frequency_;
   double collision_checker_thread_frequency_;
   double dt_replan_restricted_;
   double dt_replan_relaxed_;
@@ -61,6 +61,7 @@ protected:
   double t_replan_;
   double replanning_thread_frequency_;
   double scaling_from_param_;
+  double scaling_;
   double checker_resol_;
 
   ReplannerPtr replanner_;
@@ -72,6 +73,7 @@ protected:
   planning_scene::PlanningScenePtr planning_scn_;
   planning_scene::PlanningScenePtr planning_scn_replanning_;
   trajectory_processing::SplineInterpolator interpolator_;
+  trajectory_processing::SplineInterpolator fast_interpolator_;
   trajectory_msgs::JointTrajectoryPoint pnt_;
   trajectory_msgs::JointTrajectoryPoint pnt_replan_;
   sensor_msgs::JointState new_joint_state_;
@@ -81,9 +83,11 @@ protected:
   std::thread spawn_obj_thread_;
   std::thread replanning_thread_;
   std::thread col_check_thread_;
+  std::thread trj_exec_thread_;
 
   std::mutex planning_mtx_;
   std::mutex trj_mtx_;
+  std::mutex send_robot_mtx_;
   std::mutex checker_mtx_;
   std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
@@ -107,13 +111,6 @@ protected:
   ros::ServiceClient stop_log_;
   std_srvs::Empty srv_log_;
 
-public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  ReplannerManager(PathPtr &current_path,
-                   std::vector<PathPtr> &other_paths,
-                   ros::NodeHandle &nh);
-
   void fromParam();
   void attributeInitialization();
   void subscribeTopicsAndServices();
@@ -121,7 +118,16 @@ public:
   void collisionCheckThread();
   void displayThread();
   void spawnObjects();
-  bool trajectoryExecutionThread();
+  void trajectoryExecutionThread();
+  bool sendRobotStateThread();
+
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  ReplannerManager(PathPtr &current_path,
+                   std::vector<PathPtr> &other_paths,
+                   ros::NodeHandle &nh);
+
   bool start();
   bool startWithoutReplanning();
 };

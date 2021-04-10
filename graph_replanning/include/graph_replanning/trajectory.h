@@ -27,6 +27,7 @@
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 #include <moveit/trajectory_processing/time_optimal_trajectory_generation.h>
 #include <moveit_planning_helper/spline_interpolator.h>
+#include <graph_replanning/moveit_utils.h>
 
 #define COMMENT(...) ROS_LOG(::ros::console::levels::Debug, ROSCONSOLE_DEFAULT_NAME, __VA_ARGS__);
 
@@ -45,20 +46,19 @@ protected:
   robot_model::RobotModelConstPtr kinematic_model_;
   planning_scene::PlanningScenePtr planning_scene_;
   std::string group_name_;
-  std::string base_link_;
-  std::string last_link_;
-  ros::Publisher display_publisher_;
-  ros::Publisher marker_pub_;
+  MoveitUtilsPtr moveit_utils_;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Trajectory(const pathplan::PathPtr path,
-                         const ros::NodeHandle& nh,
-                         const planning_scene::PlanningScenePtr& planning_scene,
-                         const std::string& group_name,
-                         const std::string& base_link,
-                         const std::string& last_link);
+             const ros::NodeHandle& nh,
+             const planning_scene::PlanningScenePtr& planning_scene,
+             const std::string& group_name);
+
+  Trajectory(const ros::NodeHandle& nh,
+             const planning_scene::PlanningScenePtr& planning_scene,
+             const std::string& group_name);
 
   TrajectoryPtr pointer()
   {
@@ -72,6 +72,7 @@ public:
 
   pathplan::PathPtr getPath()
   {
+    if(path_ == NULL) ROS_ERROR("Path not computed");
     return path_;
   }
 
@@ -81,24 +82,14 @@ public:
     return trj_;
   }
 
-  // Compute a path suing BiRRT from start_node to goal_node and then it is optimized if optimizePath==1 . nh is the NodeHandler of a ros node.
-  PathPtr computeBiRRTPath(const NodePtr &start_node, NodePtr &goal_node, const Eigen::VectorXd& lb, const Eigen::VectorXd& ub, const MetricsPtr& metrics, const CollisionCheckerPtr& checker, const bool& optimizePath);
+  // Compute a path then it is optimized if optimizePath==1 . nh is the NodeHandler of a ros node.
+  PathPtr computePath(const TreeSolverPtr& solver, const bool& optimizePath);
 
-  //Transform a set of waypoints in a set of robotstate
-  std::vector<moveit::core::RobotState> fromWaypoints2State(const std::vector<Eigen::VectorXd> waypoints);
-
-  moveit::core::RobotState fromWaypoints2State(Eigen::VectorXd waypoint);
-
-  //To trasform a path to a RobotTrajectory
-  robot_trajectory::RobotTrajectoryPtr fromPath2Trj();
-
-  //To trasform a path to a RobotTrajectory with initial condition
+  //To trasform a path to a RobotTrajectory with or without initial condition
+  robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr& pnt = NULL);
   robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint& pnt);
 
-  //To display the execution of the trj on Rviz
-  void displayTrj();
-
-  double getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value, double step = 0.01);
+  double getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value, double step = 0.01);  //da sistemare
 
 };
 }

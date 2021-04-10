@@ -256,8 +256,7 @@ int main(int argc, char **argv)
     }
 
     // //////////////////////////////////////PATH PLAN//////////////////////////////////////////////////////////////////////////
-    pathplan::PathPtr path = NULL;
-    pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(path,nh,planning_scene,group_name,base_link,last_link);
+    pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scene,group_name);
 
     std::map<double,pathplan::PathPtr> path_vector;
 
@@ -266,7 +265,9 @@ int main(int argc, char **argv)
       for (unsigned int i =0; i<4; i++)
       {
         pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
-        pathplan::PathPtr solution = trajectory->computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, optimize_path);
+        pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+        pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+        pathplan::PathPtr solution = trajectory->computePath(solver, optimize_path);
         path_vector.insert(std::pair<double,pathplan::PathPtr>(solution->cost(),solution));
       }
     }

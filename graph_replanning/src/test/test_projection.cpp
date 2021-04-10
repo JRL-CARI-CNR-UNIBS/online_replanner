@@ -116,16 +116,20 @@ int main(int argc, char **argv)
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr  checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn, group_name);
 
-  pathplan::PathPtr path = NULL;
-  pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(path,nh,planning_scn,group_name,base_link,last_link);
+  pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scn,group_name);
 
   int current_node_id = -1;
   int trj_node_id = -2;
 
   pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
 
-  pathplan::PathPtr path1 = trajectory->computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, optimize_path);
-  pathplan::PathPtr path2 = trajectory->computeBiRRTPath(goal_node, start_node, lb, ub, metrics, checker, optimize_path);
+  pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+  pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+  pathplan::PathPtr path1 = trajectory->computePath(solver, optimize_path);
+
+  sampler = std::make_shared<pathplan::InformedSampler>(goal_node->getConfiguration(), start_node->getConfiguration(), lb, ub);
+  solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+  pathplan::PathPtr path2 = trajectory->computePath(solver, optimize_path);
 
   // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -149,7 +153,7 @@ int main(int argc, char **argv)
   disp->displayPathAndWaypoints(path2,"pathplan",marker_color2);
 
   pathplan::SamplerPtr samp = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-  pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
+  solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
   solver->config(nh);
 
   trajectory->setPath(current_path);

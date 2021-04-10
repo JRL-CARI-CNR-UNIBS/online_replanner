@@ -7,9 +7,7 @@ namespace pathplan
 Trajectory::Trajectory(const PathPtr path,
                        const ros::NodeHandle &nh,
                        const planning_scene::PlanningScenePtr &planning_scene,
-                       const std::string &group_name,
-                       const std::string &base_link,
-                       const std::string &last_link)
+                       const std::string &group_name)
 {
   trj_ = NULL;
   path_ = path;
@@ -17,23 +15,44 @@ Trajectory::Trajectory(const PathPtr path,
   kinematic_model_ = planning_scene->getRobotModel();
   planning_scene_ = planning_scene;
   group_name_ = group_name;
-  base_link_ = base_link;
-  last_link_ = last_link;
-  display_publisher_ = nh_.advertise<moveit_msgs::DisplayTrajectory>("/display_planned_trj", 1,true);
+  moveit_utils_ = std::make_shared<MoveitUtils>(planning_scene,group_name);
 }
 
-PathPtr Trajectory::computeBiRRTPath(const NodePtr &start_node, NodePtr &goal_node, const Eigen::VectorXd& lb, const Eigen::VectorXd& ub, const MetricsPtr& metrics, const CollisionCheckerPtr& checker, const bool& optimizePath)
+Trajectory::Trajectory(const ros::NodeHandle &nh,
+                       const planning_scene::PlanningScenePtr &planning_scene,
+                       const std::string &group_name)
 {
-  pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+  trj_ = NULL;
+  path_ = NULL;
+  nh_ = nh;
+  kinematic_model_ = planning_scene->getRobotModel();
+  planning_scene_ = planning_scene;
+  group_name_ = group_name;
+  moveit_utils_ = std::make_shared<MoveitUtils>(planning_scene,group_name);
+}
 
-  pathplan::BiRRT solver(metrics, checker, sampler);
+PathPtr Trajectory::computePath(const TreeSolverPtr& solver, const bool& optimizePath)
+{
+  CollisionCheckerPtr checker = solver->getChecker();
+  SamplerPtr sampler = solver->getSampler();
+  MetricsPtr metrics = solver->getMetrics();
+  Eigen::VectorXd lb = sampler->getLB();
+  Eigen::VectorXd ub = sampler->getUB();
+  Eigen::VectorXd start_conf = sampler->getStartConf();
+  Eigen::VectorXd goal_conf = sampler->getStopConf();
+  NodePtr start_node = std::make_shared<Node>(start_conf);
+  NodePtr goal_node = std::make_shared<Node>(goal_conf);
+
+  //pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+  //pathplan::BiRRT solver(metrics, checker, sampler);
+
   //pathplan::MultigoalSolver solver(metrics, checker, sampler);
-  solver.config(nh_);
-  solver.addStart(start_node);
-  solver.addGoal(goal_node);
+  solver->config(nh_);
+  solver->addStart(start_node);
+  solver->addGoal(goal_node);
 
   pathplan::PathPtr solution;
-  if (!solver.solve(solution, 10000))
+  if (!solver->solve(solution, 10000))
   {
     ROS_INFO("No solutions found");
     assert(0);
@@ -44,14 +63,14 @@ PathPtr Trajectory::computeBiRRTPath(const NodePtr &start_node, NodePtr &goal_no
     pathplan::PathLocalOptimizer path_solver(checker, metrics);
     path_solver.config(nh_);
 
-    solution->setTree(solver.getStartTree());
+    solution->setTree(solver->getStartTree());
     path_solver.setPath(solution);
     path_solver.solve(solution);
 
     sampler->setCost(solution->cost());
-    solver.getStartTree()->addBranch(solution->getConnections());
+    solver->getStartTree()->addBranch(solution->getConnections());
 
-    pathplan::LocalInformedSamplerPtr local_sampler = std::make_shared<pathplan::LocalInformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+    pathplan::LocalInformedSamplerPtr local_sampler = std::make_shared<pathplan::LocalInformedSampler>(start_conf, goal_conf, lb, ub);
 
     for (unsigned int isol = 0; isol < solution->getConnections().size() - 1; isol++)
     {
@@ -61,7 +80,7 @@ PathPtr Trajectory::computeBiRRTPath(const NodePtr &start_node, NodePtr &goal_no
     local_sampler->setCost(solution->cost());
 
     pathplan::RRTStar opt_solver(metrics, checker, local_sampler);
-    opt_solver.addStartTree(solver.getStartTree());
+    opt_solver.addStartTree(solver->getStartTree());
     opt_solver.addGoal(goal_node);
     opt_solver.config(nh_);
 
@@ -124,53 +143,20 @@ PathPtr Trajectory::computeBiRRTPath(const NodePtr &start_node, NodePtr &goal_no
   return solution;
 }
 
-
-std::vector<moveit::core::RobotState> Trajectory::fromWaypoints2State(const std::vector<Eigen::VectorXd> waypoints)
+robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint &pnt)
 {
-  std::vector<moveit::core::RobotState> wp_state_vector;
-  for(const Eigen::VectorXd& waypoint: waypoints)
-  {
-    moveit::core::RobotState wp_state=fromWaypoints2State(waypoint);
-    wp_state_vector.push_back(wp_state);
-  }
-  return wp_state_vector;
+  trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
+  pnt_ptr->positions = pnt.positions;
+  pnt_ptr->velocities = pnt.velocities;
+  pnt_ptr->accelerations = pnt.accelerations;
+  pnt_ptr->effort = pnt.effort;
+  pnt_ptr->time_from_start = pnt.time_from_start;
+
+  return Trajectory::fromPath2Trj(pnt_ptr);
 }
 
-moveit::core::RobotState Trajectory::fromWaypoints2State(Eigen::VectorXd waypoint)
-{
-  moveit::core::RobotState wp_state=planning_scene_->getCurrentState();
-  wp_state.setJointGroupPositions(group_name_,waypoint);
-  wp_state.update();
 
-  return wp_state;
-}
-
-robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj()
-{
-  if(path_ == NULL)
-  {
-    throw std::invalid_argument("Path not assigned");
-  }
-  std::vector<Eigen::VectorXd> waypoints=path_->getWaypoints();
-  std::vector<moveit::core::RobotState> wp_state_vector = fromWaypoints2State(waypoints);
-
-  //Definizione della traiettoria, noti i waypoints del path
-  trj_ = std::make_shared<robot_trajectory::RobotTrajectory>(kinematic_model_,group_name_);
-  for(unsigned int j=0; j<waypoints.size();j++)
-  {
-    trj_->addSuffixWayPoint(wp_state_vector.at(j),0);
-  }
-
-  trajectory_processing::IterativeParabolicTimeParameterization iptp;
-  //trajectory_processing::IterativeParabolicTimeParameterization iptp(100,0.001);
-  //trajectory_processing::TimeOptimalTrajectoryGeneration iptp(0.1,0.1,0.001);
-
-  iptp.computeTimeStamps(*trj_);
-
-  return trj_;
-}
-
-robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint& pnt)
+robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr &pnt)
 {
   if(path_ == NULL)
   {
@@ -178,17 +164,17 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   }
 
   std::vector<Eigen::VectorXd> waypoints=path_->getWaypoints();
-  std::vector<moveit::core::RobotState> wp_state_vector = fromWaypoints2State(waypoints);
+  std::vector<moveit::core::RobotState> wp_state_vector = moveit_utils_->fromWaypoints2State(waypoints);
 
   //Definizione della traiettoria, noti i waypoints del path
   trj_ = std::make_shared<robot_trajectory::RobotTrajectory>(kinematic_model_,group_name_);
   for(unsigned int j=0; j<waypoints.size();j++)
   {
-    if (j==0)
+    if (j==0 && pnt != NULL)
     {
-      wp_state_vector.at(j).setJointGroupPositions(group_name_,pnt.positions);
-      wp_state_vector.at(j).setJointGroupVelocities(group_name_,pnt.velocities);
-      wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt.accelerations);
+      wp_state_vector.at(j).setJointGroupPositions(group_name_,pnt->positions);
+      wp_state_vector.at(j).setJointGroupVelocities(group_name_,pnt->velocities);
+      wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
     trj_->addSuffixWayPoint(wp_state_vector.at(j),0); //time parametrization
   }
@@ -199,36 +185,6 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   iptp.computeTimeStamps(*trj_);
 
   return trj_;
-}
-
-
-void Trajectory::displayTrj()
-{
-  moveit_msgs::RobotTrajectory trj_msg;
-  trj_->getRobotTrajectoryMsg(trj_msg);
-
-  moveit_msgs::DisplayTrajectory disp_trj;
-  disp_trj.trajectory.push_back(trj_msg);
-  disp_trj.model_id=kinematic_model_->getName();
-
-  robot_state::RobotState start_state=planning_scene_->getCurrentState();
-  start_state.setJointGroupPositions(group_name_,trj_msg.joint_trajectory.points.at(0).positions);
-  start_state.setJointGroupVelocities(group_name_,trj_msg.joint_trajectory.points.at(0).velocities);
-  start_state.setJointGroupAccelerations(group_name_,trj_msg.joint_trajectory.points.at(0).accelerations);
-  moveit::core::robotStateToRobotStateMsg(start_state,disp_trj.trajectory_start);
-
-  /*Visualize the trajectory*/
-  moveit_visual_tools::MoveItVisualToolsPtr visual_tools = std::make_shared<moveit_visual_tools::MoveItVisualTools>(base_link_,"/rviz_visual_tools");
-
-  visual_tools->loadRobotStatePub("/display_robot_state");
-  visual_tools->enableBatchPublishing();
-  visual_tools->trigger();
-
-  visual_tools->publishRobotState(planning_scene_->getCurrentStateNonConst());
-  visual_tools->trigger();
-
-  display_publisher_.publish(disp_trj);  //to display the robot following the trj
-  visual_tools->trigger();
 }
 
 double Trajectory::getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value, double step)

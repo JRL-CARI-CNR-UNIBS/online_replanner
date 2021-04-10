@@ -1,5 +1,6 @@
 #include <ros/ros.h>
 #include <graph_replanning/trajectory.h>
+#include <graph_replanning/moveit_utils.h>
 #include <moveit/robot_state/robot_state.h>
 #include <graph_replanning/replanner.h>
 #include <object_loader_msgs/AddObjects.h>
@@ -122,8 +123,7 @@ int main(int argc, char **argv)
   pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
   disp.clearMarkers();
   ros::Duration(1).sleep();
-  pathplan::PathPtr path = NULL;
-  pathplan::Trajectory trajectory = pathplan::Trajectory(path,nh,planning_scene,group_name,base_link,last_link);
+  pathplan::Trajectory trajectory = pathplan::Trajectory(nh,planning_scene,group_name);
 
   for(unsigned int j=0; j<n_test;j++)
   {
@@ -138,7 +138,10 @@ int main(int argc, char **argv)
     {
       pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
 
-      pathplan::PathPtr solution = trajectory.computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, 0);
+      pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+      pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+
+      pathplan::PathPtr solution = trajectory.computePath(solver,0);
       path_vector.push_back(solution);
       ros::Duration(0.1).sleep();
 
@@ -186,7 +189,8 @@ int main(int argc, char **argv)
     pathplan::NodePtr obj_child = obj_conn->getChild();
     Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
 
-    moveit::core::RobotState obj_pos_state = trajectory.fromWaypoints2State(obj_pos);
+    pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
+    moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
     tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
     obj.pose.header.frame_id="world";
 

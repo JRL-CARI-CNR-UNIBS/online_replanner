@@ -105,8 +105,7 @@ int main(int argc, char **argv)
 
   // //////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
   pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
-  pathplan::PathPtr path = NULL;
-  pathplan::Trajectory trajectory = pathplan::Trajectory(path,nh,planning_scene,group_name,base_link,last_link);
+  pathplan::Trajectory trajectory = pathplan::Trajectory(nh,planning_scene,group_name);
 
   ros::Duration(2).sleep();
 
@@ -118,8 +117,10 @@ int main(int argc, char **argv)
     {
       pathplan::NodePtr start_node = std::make_shared<pathplan::Node>(start_conf);
       pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
+      pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+      pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
 
-      pathplan::PathPtr solution = trajectory.computeBiRRTPath(start_node, goal_node, lb, ub, metrics, checker, 1);
+      pathplan::PathPtr solution = trajectory.computePath(solver, 1);
       path_vector.push_back(solution);
       ros::Duration(0.1).sleep();
 
@@ -164,7 +165,8 @@ int main(int argc, char **argv)
     Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + (0.8)*(obj_child->getConfiguration()-obj_parent->getConfiguration());
     //Eigen::VectorXd obj_pos = obj_child->getConfiguration();
 
-    moveit::core::RobotState obj_pos_state = trajectory.fromWaypoints2State(obj_pos);
+    pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
+    moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
     tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
     obj.pose.header.frame_id="world";
 

@@ -20,7 +20,7 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
 
 void ReplannerManager::fromParam()
 {
-  if(!nh_.getParam("trj_execution_thread_frequency",trj_execution_thread_frequency_)) throw  std::invalid_argument("trj_execution_thread_frequency not set");
+  if(!nh_.getParam("trj_execution_thread_frequency",trj_exec_thread_frequency_)) throw  std::invalid_argument("trj_execution_thread_frequency not set");
   if(!nh_.getParam("collision_checker_thread_frequency",collision_checker_thread_frequency_)) throw  std::invalid_argument("collision_checker_thread_frequency not set");
   if(!nh_.getParam("dt_replan_restricted",dt_replan_restricted_)) throw  std::invalid_argument("dt_replan_restricted not set");
   if(!nh_.getParam("dt_replan_relaxed",dt_replan_relaxed_)) throw  std::invalid_argument("dt_replan_relaxed not set");
@@ -42,7 +42,7 @@ void ReplannerManager::attributeInitialization()
   replanning_thread_frequency_ = 1/dt_replan_restricted_;
   real_time_ = 0.0;
   t_ = 0.0;
-  dt_ = 1/trj_execution_thread_frequency_;
+  dt_ = 1/trj_exec_thread_frequency_;
   replan_offset_ = (dt_replan_restricted_-dt_)*K_OFFSET;
   t_replan_ = t_+replan_offset_;
   n_conn_ = 0;
@@ -105,12 +105,14 @@ void ReplannerManager::attributeInitialization()
   pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker_, samp);
   solver->config(nh_);
 
-  trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_,nh_,planning_scn_replanning_,group_name_,base_link_,last_link_);
+  trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_,nh_,planning_scn_replanning_,group_name_);
   robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj();
   moveit_msgs::RobotTrajectory tmp_trj_msg;
   trj->getRobotTrajectoryMsg(tmp_trj_msg);
   interpolator_.setTrajectory(tmp_trj_msg);
   interpolator_.setSplineOrder(1);
+
+  fast_interpolator_ = interpolator_;
 
   Eigen::VectorXd point2project(dof);
   interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
@@ -182,7 +184,7 @@ void ReplannerManager::replanningThread()
   int n_conn_replan = 0;
   bool old_path_obstructed = path_obstructed_;
 
-  while (!stop_)
+  while (!stop_ && ros::ok())
   {
     ros::WallTime tic_tot=ros::WallTime::now();
 
@@ -364,7 +366,7 @@ void ReplannerManager::collisionCheckThread()
 
   moveit_msgs::GetPlanningScene ps_srv;
 
-  while (!stop_)
+  while (!stop_ && ros::ok())
   {
     ros::WallTime tic_tot = ros::WallTime::now();
 
@@ -437,117 +439,11 @@ bool ReplannerManager::start()
   ros::Duration(0.1).sleep();
   replanning_thread_ = std::thread(&ReplannerManager::replanningThread, this);
   col_check_thread_ = std::thread(&ReplannerManager::collisionCheckThread, this);
+  trj_exec_thread_ = std::thread(&ReplannerManager::trajectoryExecutionThread, this);
 
-  bool success = trajectoryExecutionThread();
+  bool success = sendRobotStateThread();
 
-  return success;
-}
-
-bool ReplannerManager::startWithoutReplanning()
-{
-  std_srvs::Empty srv_log;
-  start_log_.call(srv_log);
-
-  target_pub_.publish(new_joint_state_);
-  unscaled_target_pub_.publish(new_joint_state_);
-
-  ROS_WARN("Launching threads..");
-  display_thread_ = std::thread(&ReplannerManager::displayThread, this);
-
-  bool success = trajectoryExecutionThread();
-
-  return success;
-}
-
-bool ReplannerManager::trajectoryExecutionThread()
-{
-  Eigen::VectorXd past_current_configuration = current_configuration_;
-  Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
-
-  ros::Rate lp(trj_execution_thread_frequency_);
-
-  while(!stop_)
-  {
-    if (!ros::ok())
-    {
-      stop_=true;
-      break;
-    }
-    ros::WallTime tic_tot = ros::WallTime::now();
-
-    replanner_mtx_.lock();
-    trj_mtx_.lock();
-    real_time_ += dt_;
-
-    double scaling = 1.0;
-    if(read_safe_scaling_)
-    {      
-        scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
-    }
-    else
-    {
-      scaling = scaling_from_param_;
-    }
-
-    t_+= scaling*dt_;
-    interpolator_.interpolate(ros::Duration(t_),pnt_);
-    Eigen::VectorXd point2project(pnt_.positions.size());
-    for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
-
-    past_current_configuration = current_configuration_;
-    current_configuration_ = replanner_->getCurrentPath()->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
-
-    trj_mtx_.unlock();
-    replanner_mtx_.unlock();
-
-    new_joint_state_.position = pnt_.positions;
-    new_joint_state_.velocity = pnt_.velocities;
-    new_joint_state_.header.stamp=ros::Time::now();
-    unscaled_target_pub_.publish(new_joint_state_);
-
-    new_joint_state_.position = pnt_.positions;
-    for(unsigned int i=0;i<pnt_.velocities.size(); i++) new_joint_state_.velocity[i] = pnt_.velocities[i]*scaling;
-    new_joint_state_.header.stamp=ros::Time::now();
-    target_pub_.publish(new_joint_state_);
-
-    // /////////////////////////////////////////////////////////
-    /*t_+= scaling_*dt_;
-
-    interpolator_.interpolate(ros::Duration(t_),pnt_);
-    Eigen::VectorXd point2project(pnt_.positions.size());
-    for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
-    past_current_configuration = current_configuration_;
-    current_configuration_ = replanner_->getCurrentPath()->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
-
-    trj_mtx_.unlock();
-    replanner_mtx_.unlock();
-
-    joint_state_.position = pnt_.positions;
-    joint_state_.velocity = pnt_.velocities;
-    joint_state_.header.stamp=ros::Time::now();
-    target_pub_.publish(joint_state_);*/
-    // //////////////////////////////////////////////////////////
-
-    std_msgs::Float64 time_msg;
-    time_msg.data = real_time_;
-    time_pub_.publish(time_msg);
-
-    if((current_configuration_-goal_conf).norm()<1e-3) stop_ = true;
-
-    ros::WallTime toc_tot = ros::WallTime::now();
-    double duration = (toc_tot-tic_tot).toSec();
-
-    if(duration>(1/trj_execution_thread_frequency_) && display_timing_warning_)
-    {
-      ROS_WARN("Trj execution thread time expired: duration-> %f",duration);
-    }
-
-    lp.sleep();
-  }
-
-  ROS_ERROR("STOP");
-  stop_ = true;
-
+  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
   if(replanning_thread_.joinable()) replanning_thread_.join();
   if(col_check_thread_.joinable()) col_check_thread_.join();
   if(display_thread_.joinable()) display_thread_.join();
@@ -576,6 +472,150 @@ bool ReplannerManager::trajectoryExecutionThread()
 
   stop_log_.call(srv_log_);
 
+  return success;
+}
+
+bool ReplannerManager::startWithoutReplanning()
+{
+  start_log_.call(srv_log_);
+
+  target_pub_.publish(new_joint_state_);
+  unscaled_target_pub_.publish(new_joint_state_);
+
+  ROS_WARN("Launching threads..");
+  display_thread_ = std::thread(&ReplannerManager::displayThread, this);
+  trj_exec_thread_ = std::thread(&ReplannerManager::trajectoryExecutionThread, this);
+
+  bool success = sendRobotStateThread();
+
+  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
+  if(display_thread_.joinable()) display_thread_.join();
+
+  // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
+  std_msgs::Float64 fake_data;
+  sensor_msgs::JointState joint_fake;
+  joint_fake.position = pnt_.positions;
+  joint_fake.velocity = pnt_.velocities;
+  joint_fake.name = new_joint_state_.name;
+  joint_fake.header.frame_id = new_joint_state_.header.frame_id;
+  joint_fake.header.stamp=ros::Time::now();
+  fake_data.data = 0.0;
+  obs_current_norm_pub_.publish(fake_data);
+  current_norm_pub_.publish(fake_data);
+  time_pub_.publish(fake_data);
+  target_pub_.publish(joint_fake);
+
+  stop_log_.call(srv_log_);
+
+  return success;
+}
+
+void ReplannerManager::trajectoryExecutionThread()
+{
+  Eigen::VectorXd past_current_configuration = current_configuration_;
+
+  ros::Rate lp(trj_exec_thread_frequency_);
+
+  while(!stop_)
+  {
+    ros::WallTime tic_tot = ros::WallTime::now();
+
+    replanner_mtx_.lock();
+    trj_mtx_.lock();
+
+    double scaling = 1.0;
+    if(read_safe_scaling_)
+    {      
+        scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
+    }
+    else
+    {
+        scaling = scaling_from_param_;
+    }
+
+    send_robot_mtx_.lock();
+    scaling_ = scaling;
+    t_+= scaling_*dt_;
+    fast_interpolator_ = interpolator_;
+    send_robot_mtx_.unlock();
+
+    interpolator_.interpolate(ros::Duration(t_),pnt_);
+    Eigen::VectorXd point2project(pnt_.positions.size());
+    for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
+
+    past_current_configuration = current_configuration_;
+    current_configuration_ = replanner_->getCurrentPath()->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
+
+    trj_mtx_.unlock();
+    replanner_mtx_.unlock();
+
+    ros::WallTime toc_tot = ros::WallTime::now();
+    double duration = (toc_tot-tic_tot).toSec();
+
+    if(duration>(1/trj_exec_thread_frequency_) && display_timing_warning_)
+    {
+      ROS_WARN("Trj execution thread time expired: duration-> %f",duration);
+    }
+
+    lp.sleep();
+  }
+}
+
+bool ReplannerManager::sendRobotStateThread()
+{
+  double send_state_thread_frequency = 500.0;
+  double dt = 1/send_state_thread_frequency;
+  double t = t_;
+  double t_trj_thread = t_;
+  trajectory_msgs::JointTrajectoryPoint pnt = pnt_;
+  Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
+
+  ros::Rate lp(send_state_thread_frequency);
+  while(!stop_ && ros::ok())
+  {
+    real_time_ += dt;
+
+    send_robot_mtx_.lock();
+    double scaling = scaling_;
+
+    if(t_trj_thread == t_)
+    {
+      t+= scaling*dt;
+    }
+    else          //the trj_exec_thread cycle is changed
+    {
+      t_trj_thread = t_;
+      t = t_;
+    }
+
+    fast_interpolator_.interpolate(ros::Duration(t),pnt);
+    send_robot_mtx_.unlock();
+
+    Eigen::VectorXd point2project(pnt.positions.size());
+    for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
+
+    if((point2project-goal_conf).norm()<1e-3) stop_ = true;
+
+    new_joint_state_.position = pnt.positions;
+    new_joint_state_.velocity = pnt.velocities;
+    new_joint_state_.header.stamp=ros::Time::now();
+    unscaled_target_pub_.publish(new_joint_state_);
+
+    new_joint_state_.position = pnt.positions;
+    for(unsigned int i=0;i<pnt.velocities.size(); i++) new_joint_state_.velocity[i] = pnt.velocities[i]*scaling;
+    new_joint_state_.header.stamp=ros::Time::now();
+    target_pub_.publish(new_joint_state_);
+
+    std_msgs::Float64 time_msg;
+    time_msg.data = real_time_;
+    time_pub_.publish(time_msg);
+
+    lp.sleep();
+  }
+
+  ROS_ERROR("STOP");
+  stop_ = true;
+
   return 1;
 }
 
@@ -592,10 +632,10 @@ void ReplannerManager::displayThread()
 
   disp->clearMarkers();
 
-  double display_thread_frequency = 0.75*trj_execution_thread_frequency_;
+  double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
-  while(!stop_)
+  while(!stop_ && ros::ok())
   {
     checker_mtx_.lock();
     pathplan::PathPtr current_path = current_path_->clone();
@@ -669,13 +709,14 @@ void ReplannerManager::spawnObjects()
 {
   object_loader_msgs::AddObjects srv_add_object;
   object_loader_msgs::RemoveObjects srv_remove_object;
+  MoveitUtils moveit_utils(planning_scn_,group_name_);
 
-  ros::Rate lp(0.5*trj_execution_thread_frequency_);
+  ros::Rate lp(0.5*trj_exec_thread_frequency_);
 
   bool object_spawned = false;
   bool second_object_spawned = true;
   bool third_object_spawned = true;
-  while (!stop_)
+  while (!stop_ && ros::ok())
   {
     // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
     if(real_time_>=1.10 && !third_object_spawned)  //1.5
@@ -765,7 +806,7 @@ void ReplannerManager::spawnObjects()
         replanner_mtx_.unlock();
       }
 
-      moveit::core::RobotState obj_pos_state = trajectory_->fromWaypoints2State(obj_pos);
+      moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
 
       tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link_),obj.pose.pose);
 
