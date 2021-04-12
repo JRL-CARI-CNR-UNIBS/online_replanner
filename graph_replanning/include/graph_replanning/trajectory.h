@@ -83,7 +83,7 @@ public:
   }
 
   // Compute a path then it is optimized if optimizePath==1 . nh is the NodeHandler of a ros node.
-  PathPtr computePath(const TreeSolverPtr& solver, const bool& optimizePath);
+  PathPtr computePath(const Eigen::VectorXd &start_conf, const Eigen::VectorXd &goal_conf, const TreeSolverPtr& solver, const bool& optimizePath);
 
   //To trasform a path to a RobotTrajectory with or without initial condition
   robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr& pnt = NULL);

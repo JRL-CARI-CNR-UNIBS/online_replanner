@@ -31,22 +31,16 @@ Trajectory::Trajectory(const ros::NodeHandle &nh,
   moveit_utils_ = std::make_shared<MoveitUtils>(planning_scene,group_name);
 }
 
-PathPtr Trajectory::computePath(const TreeSolverPtr& solver, const bool& optimizePath)
+PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::VectorXd& goal_conf, const TreeSolverPtr& solver, const bool& optimizePath)
 {
   CollisionCheckerPtr checker = solver->getChecker();
   SamplerPtr sampler = solver->getSampler();
   MetricsPtr metrics = solver->getMetrics();
   Eigen::VectorXd lb = sampler->getLB();
   Eigen::VectorXd ub = sampler->getUB();
-  Eigen::VectorXd start_conf = sampler->getStartConf();
-  Eigen::VectorXd goal_conf = sampler->getStopConf();
   NodePtr start_node = std::make_shared<Node>(start_conf);
   NodePtr goal_node = std::make_shared<Node>(goal_conf);
 
-  //pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
-  //pathplan::BiRRT solver(metrics, checker, sampler);
-
-  //pathplan::MultigoalSolver solver(metrics, checker, sampler);
   solver->config(nh_);
   solver->addStart(start_node);
   solver->addGoal(goal_node);
