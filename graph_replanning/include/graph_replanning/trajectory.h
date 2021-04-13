@@ -82,15 +82,17 @@ public:
     return trj_;
   }
 
-  // Compute a path then it is optimized if optimizePath==1 . nh is the NodeHandler of a ros node.
+  // Compute a path and then optimizes it if optimizePath==1
+  PathPtr computePath(const NodePtr &start_node, const NodePtr &goal_node, const TreeSolverPtr& solver, const bool& optimizePath);
+  //Note: everytime it is called, new nodes corresponding to start_conf and goal_conf are created
   PathPtr computePath(const Eigen::VectorXd &start_conf, const Eigen::VectorXd &goal_conf, const TreeSolverPtr& solver, const bool& optimizePath);
 
   //To trasform a path to a RobotTrajectory with or without initial condition
   robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr& pnt = NULL);
   robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint& pnt);
 
-  double getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value, double step = 0.01);  //da sistemare
-
+  //To get the time corresponding to the trajectory point. Note: the trajectory is, firstly, divided in n_interval intervals to find an approximate position of the trj_point, then the candidate interval is divided in 100 sub-intervals to precisely define the time corrisponding to trj_point
+  double getTimeFromTrjPoint(const Eigen::VectorXd &trj_point, const int &n_interval = 10, const int &spline_order = 1);
 };
 }
 

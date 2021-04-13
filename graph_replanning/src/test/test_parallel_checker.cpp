@@ -130,18 +130,15 @@ int main(int argc, char **argv)
     std::vector<pathplan::PathPtr> path_vector;
     Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
-    pathplan::NodePtr start_node = std::make_shared<pathplan::Node>(start_conf);
 
     int id=0;
     int id_wp = 1000;
     for (unsigned int i =0; i<n_paths; i++)
     {
-      pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
-
-      pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+      pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
       pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
 
-      pathplan::PathPtr solution = trajectory.computePath(solver,0);
+      pathplan::PathPtr solution = trajectory.computePath(start_conf,goal_conf,solver,0);
       path_vector.push_back(solution);
       ros::Duration(0.1).sleep();
 

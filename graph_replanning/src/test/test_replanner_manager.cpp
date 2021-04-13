@@ -133,9 +133,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd start_conf;
     if(get_real_start_pos) move_group.getCurrentState()->copyJointGroupPositions(joint_model_group,start_configuration);
     start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
-
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
-    pathplan::NodePtr start_node = std::make_shared<pathplan::Node>(start_conf);
 
     pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
     pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name, checker_resolution);
@@ -217,10 +215,9 @@ int main(int argc, char **argv)
 
     for (unsigned int i =0; i<4; i++)
     {
-      pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
-      pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+      pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
       pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-      pathplan::PathPtr solution = trajectory->computePath(solver, optimize_path);
+      pathplan::PathPtr solution = trajectory->computePath(start_conf, goal_conf,solver,optimize_path);
       path_vector.push_back(solution);
     }
 

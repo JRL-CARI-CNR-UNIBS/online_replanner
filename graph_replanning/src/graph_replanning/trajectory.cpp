@@ -33,13 +33,20 @@ Trajectory::Trajectory(const ros::NodeHandle &nh,
 
 PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::VectorXd& goal_conf, const TreeSolverPtr& solver, const bool& optimizePath)
 {
+  NodePtr start_node = std::make_shared<Node>(start_conf);
+  NodePtr goal_node = std::make_shared<Node>(goal_conf);
+
+  return computePath(start_node,goal_node,solver,optimizePath);
+}
+
+
+PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimizePath)
+{
   CollisionCheckerPtr checker = solver->getChecker();
   SamplerPtr sampler = solver->getSampler();
   MetricsPtr metrics = solver->getMetrics();
   Eigen::VectorXd lb = sampler->getLB();
   Eigen::VectorXd ub = sampler->getUB();
-  NodePtr start_node = std::make_shared<Node>(start_conf);
-  NodePtr goal_node = std::make_shared<Node>(goal_conf);
 
   solver->config(nh_);
   solver->addStart(start_node);
@@ -64,7 +71,7 @@ PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::
     sampler->setCost(solution->cost());
     solver->getStartTree()->addBranch(solution->getConnections());
 
-    pathplan::LocalInformedSamplerPtr local_sampler = std::make_shared<pathplan::LocalInformedSampler>(start_conf, goal_conf, lb, ub);
+    pathplan::LocalInformedSamplerPtr local_sampler = std::make_shared<pathplan::LocalInformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
 
     for (unsigned int isol = 0; isol < solution->getConnections().size() - 1; isol++)
     {
@@ -170,9 +177,10 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
       wp_state_vector.at(j).setJointGroupVelocities(group_name_,pnt->velocities);
       wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
-    trj_->addSuffixWayPoint(wp_state_vector.at(j),0); //time parametrization
+    trj_->addSuffixWayPoint(wp_state_vector.at(j),0);
   }
 
+  //Time parametrization
   trajectory_processing::IterativeParabolicTimeParameterization iptp;
   //trajectory_processing::IterativeParabolicTimeParameterization iptp(100,0.001);
   //trajectory_processing::TimeOptimalTrajectoryGeneration iptp(0.1,0.1,0.001);
@@ -181,7 +189,7 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   return trj_;
 }
 
-double Trajectory::getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value, double step)
+double Trajectory::getTimeFromTrjPoint(const Eigen::VectorXd &trj_point, const int& n_interval, const int &spline_order)
 {
   double t = -1.0;
   if(trj_ == NULL)
@@ -191,65 +199,62 @@ double Trajectory::getTimeFromPositionOnTrj(const Eigen::VectorXd &joints_value,
   }
   else
   {
-    double t1,t2,dist,dist1,dist2,min_dist,t_min,t_max,final_time;
-    dist = std::numeric_limits<double>::infinity();
-    min_dist = dist;
-    t_min = 0;
-    t1 = t_min;
-    t2 = t1+step;
-    final_time = trj_->getDuration();
-
+    Eigen::VectorXd pos1,pos1_interval;
+    double err,dist,dist1,dist2,dist1_interval,t1_interval,t2_interval;
+    double end_time = trj_->getDuration();
+    double step = end_time/n_interval;
+    double min_err = std::numeric_limits<double>::infinity();
+    double t1 = 0;
+    double t2 = t1+step;
 
     moveit_msgs::RobotTrajectory tmp_trj_msg;
     trj_->getRobotTrajectoryMsg(tmp_trj_msg);
 
     trajectory_processing::SplineInterpolator interpolator;
     interpolator.setTrajectory(tmp_trj_msg);
-    interpolator.setSplineOrder(1);
+    interpolator.setSplineOrder(spline_order);
+
+    pos1 = path_->getWaypoints().at(0);
+    dist1 = (trj_point-pos1).norm();
 
     for(unsigned int i=0;i<2;i++)
     {
-      while(t2<=final_time)
+      while(t2<=end_time)
       {
-        trajectory_msgs::JointTrajectoryPoint pnt1;
         trajectory_msgs::JointTrajectoryPoint pnt2;
-
-        interpolator.interpolate(ros::Duration(t1),pnt1);
         interpolator.interpolate(ros::Duration(t2),pnt2);
-
-        Eigen::VectorXd pos1(pnt1.positions.size());
         Eigen::VectorXd pos2(pnt2.positions.size());
+        for(unsigned int j=0; j<pnt2.positions.size();j++) pos2[j] = pnt2.positions.at(j);
 
-        for(unsigned int i=0; i<pnt1.positions.size();i++)
+        dist2 = (pos2-trj_point).norm();
+        dist = (pos2-pos1).norm();
+        err = std::abs(dist-dist1-dist2);
+
+        if(err<min_err)
         {
-          pos1[i] = pnt1.positions.at(i);
-          pos2[i] = pnt2.positions.at(i);
+          min_err = err;
+          t1_interval = t1;
+          t2_interval = t2;
+          dist1_interval = dist1;
+          pos1_interval = pos1;
+
+          t = t1+step*(dist1)/(dist1+dist2);
+
+          if(err<1e-06) return t;
         }
 
-        dist1 = (joints_value-pos1).norm();
-        dist2 = (joints_value-pos2).norm();
-        dist = dist1+dist2;
-
-        if(dist<min_dist)
-        {
-          min_dist = dist;
-          t_min = t1;
-          t_max = t2;
-
-          if(i==2)
-          {
-            t = t1+step*(dist1)/(dist1+dist2);
-          }
-        }
-
-        t1 += step;
+        t1 = t2;
         t2 = t1+step;
+        dist1 = dist2;
+        pos1 = pos2;
       }
 
-      step = step/100;
-      t1 = t_min;
+      step = (t2_interval-t1_interval)/100;
+      t1 = t1_interval;
       t2 = t1+step;
-      final_time = t_max;
+      end_time = t2_interval;
+      dist1 = dist1_interval;
+      pos1 = pos1_interval;
     }
   }
 

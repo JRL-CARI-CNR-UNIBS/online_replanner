@@ -111,8 +111,6 @@ int main(int argc, char **argv)
   Eigen::VectorXd goal_conf(dof);
   goal_conf <<  0.8,0.8,0.8;
 
-  pathplan::NodePtr start_node = std::make_shared<pathplan::Node>(start_conf);
-
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr  checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn, group_name);
 
@@ -121,15 +119,15 @@ int main(int argc, char **argv)
   int current_node_id = -1;
   int trj_node_id = -2;
 
-  pathplan::NodePtr goal_node = std::make_shared<pathplan::Node>(goal_conf);
-
-  pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_node->getConfiguration(), goal_node->getConfiguration(), lb, ub);
+  pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
   pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-  pathplan::PathPtr path1 = trajectory->computePath(solver, optimize_path);
-
-  sampler = std::make_shared<pathplan::InformedSampler>(goal_node->getConfiguration(), start_node->getConfiguration(), lb, ub);
-  solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-  pathplan::PathPtr path2 = trajectory->computePath(solver, optimize_path);
+  ROS_INFO("QUA");
+  pathplan::PathPtr path1 = trajectory->computePath(start_conf,goal_conf,solver,optimize_path);
+  ROS_INFO("QUA1");
+  //sampler = std::make_shared<pathplan::InformedSampler>(goal_conf,start_conf,lb,ub);
+  solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
+  pathplan::PathPtr path2 = trajectory->computePath(goal_conf,start_conf,solver,optimize_path);
+  ROS_INFO("QUA2");
 
   // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -179,6 +177,16 @@ int main(int argc, char **argv)
   interpolator.interpolate(ros::Duration(t),pnt);
   current_configuration = start_conf;
   Eigen::VectorXd past_configuration = current_configuration;
+
+  double time_prova = MAX_TIME/2.1;
+
+  interpolator.interpolate(ros::Duration(time_prova),pnt);
+  for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
+
+  double computed_t = trajectory->getTimeFromTrjPoint(point2project);
+
+  ROS_INFO_STREAM("real time: "<<time_prova<<" found time: "<<computed_t);
+  return 0;
 
   double stop = false;
   double main_frequency = 1/dt;
