@@ -280,7 +280,7 @@ int main(int argc, char **argv)
     pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
     solver->config(nh);
 
-    Eigen::VectorXd current_configuration = (current_path->getConnections().at(idx)->getChild()->getConfiguration() + current_path->getConnections().at(idx)->getParent()->getConfiguration())/2.0;
+    Eigen::VectorXd current_configuration = current_path->getWaypoints().at(0);//(current_path->getConnections().at(idx)->getChild()->getConfiguration() + current_path->getConnections().at(idx)->getParent()->getConfiguration())/2.0;
 
     bool success;
     bool succ_node = 1;
@@ -305,7 +305,7 @@ int main(int argc, char **argv)
       object_loader_msgs::Object obj;
       obj.object_type="scatola";
 
-      int obj_conn_pos = current_path->getConnections().size()-1;
+      int obj_conn_pos = 0;//current_path->getConnections().size()-1;
       pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
       pathplan::NodePtr obj_parent = obj_conn->getParent();
       pathplan::NodePtr obj_child = obj_conn->getChild();

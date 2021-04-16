@@ -7,17 +7,17 @@ dt_replan_relaxed: 0.120
 checker_resolution: 0.05
 trj_execution_thread_frequency: 100
 collision_checker_thread_frequency: 30
-spawn_objs: true
+spawn_objs: false
 init_test: 0
 end_test: 1
 opt_path: true
-display_timing_warning: true
-display_replanning_success: true
-starting_obs_pos: [0.6,0.0,1.5]
+display_timing_warning: FALSE
+display_replanning_success: FALSE
+starting_obs_pos: [0.6,+0.3,1.5] #[0.6,0.0,1.5]
 
 scaling: 0.7
 checker_resolution: 0.05
-start_configuration:  [2.0927252769470215, -1.2914326947978516, 1.886576000844137, -2.2254587612547816, 1.5417447090148926, -0.9218266646014612]
-stop_configuration: [0.8, -1.57, 1.57, 0.0, 1.57, 0.0]
+start_configuration: [2.5, -1.4232, 1.4232, 0.0, 1.8398, 0.0] #[2.0927252769470215, -1.2914326947978516, 1.886576000844137, -2.2254587612547816, 1.5417447090148926, -0.9218266646014612]
+stop_configuration: [0.5207, -0.7290, 0.6596, 0.0, 1.2150, 0.0] #[0.8, -1.57, 1.57, 0.0, 1.57, 0.0]
 read_safe_scaling: false
 get_real_start_pos: false

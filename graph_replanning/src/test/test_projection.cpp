@@ -121,13 +121,10 @@ int main(int argc, char **argv)
 
   pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
   pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-  ROS_INFO("QUA");
   pathplan::PathPtr path1 = trajectory->computePath(start_conf,goal_conf,solver,optimize_path);
-  ROS_INFO("QUA1");
   //sampler = std::make_shared<pathplan::InformedSampler>(goal_conf,start_conf,lb,ub);
   solver = std::make_shared<pathplan::BiRRT>(metrics,checker,sampler);
   pathplan::PathPtr path2 = trajectory->computePath(goal_conf,start_conf,solver,optimize_path);
-  ROS_INFO("QUA2");
 
   // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -177,16 +174,6 @@ int main(int argc, char **argv)
   interpolator.interpolate(ros::Duration(t),pnt);
   current_configuration = start_conf;
   Eigen::VectorXd past_configuration = current_configuration;
-
-  double time_prova = MAX_TIME/2.1;
-
-  interpolator.interpolate(ros::Duration(time_prova),pnt);
-  for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
-
-  double computed_t = trajectory->getTimeFromTrjPoint(point2project);
-
-  ROS_INFO_STREAM("real time: "<<time_prova<<" found time: "<<computed_t);
-  return 0;
 
   double stop = false;
   double main_frequency = 1/dt;

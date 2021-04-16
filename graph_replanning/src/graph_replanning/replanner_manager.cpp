@@ -119,12 +119,14 @@ void ReplannerManager::attributeInitialization()
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
   configuration_replan_ = current_path_->projectOnClosestConnection(point2project);
   current_configuration_ = current_path_->getWaypoints().front();
+  real_pos_ = current_configuration_;
 
   n_conn_ = 0;
 
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
 
   interpolator_.interpolate(ros::Duration(t_),pnt_);
+  real_pnt_ = pnt_;
   new_joint_state_.position = pnt_.positions;
   new_joint_state_.velocity = pnt_.velocities;
   new_joint_state_.name = joint_names;
@@ -179,9 +181,12 @@ void ReplannerManager::replanningThread()
   Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
   Eigen::VectorXd past_configuration_replan = configuration_replan_;
+  Eigen::VectorXd real_pos_projection = real_pos_;
+  Eigen::VectorXd old_real_pos_projection = real_pos_;
   double past_abscissa;
   double abscissa;
   int n_conn_replan = 0;
+  int n_conn_real = 0;
   bool old_path_obstructed = path_obstructed_;
 
   while (!stop_ && ros::ok())
@@ -300,10 +305,13 @@ void ReplannerManager::replanningThread()
         checker_mtx_.lock();
         replanner_mtx_.lock();
         trj_mtx_.lock();
-        replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
+        send_robot_mtx_.lock();
+        old_real_pos_projection = real_pos_projection;
+        Eigen::VectorXd real_pos_projection = replanner_->getCurrentPath()->projectOnClosestConnectionKeepingPastPrj(real_pos_,old_real_pos_projection,n_conn_real);
+        replanner_->startReplannedPathFromNewCurrentConf(real_pos_projection);
         replanner_->simplifyReplannedPath(0.1);  //usa var locale e poi assegna a curr path
 
-        current_norm.data = replanner_->getCurrentPath()->getNormFromConf(current_configuration_);
+        current_norm.data = replanner_->getCurrentPath()->getNormFromConf(current_configuration_); //real_pos_
         new_norm.data = replanner_->getReplannedPath()->cost();
         time_replanning.data = (toc_rep-tic_rep).toSec();
 
@@ -313,7 +321,9 @@ void ReplannerManager::replanningThread()
         tic_trj=ros::WallTime::now();
         moveit_msgs::RobotTrajectory tmp_trj_msg;
         trajectory_->setPath(current_path_);
-        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
+        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(real_pnt_);
+        send_robot_mtx_.unlock();
+
         trj->getRobotTrajectoryMsg(tmp_trj_msg);
         toc_trj=ros::WallTime::now();
 
@@ -324,6 +334,7 @@ void ReplannerManager::replanningThread()
         t_replan_=0;
         n_conn_ = 0;
         n_conn_replan = 0;
+        n_conn_real = 0;
         abscissa = 0;
         past_abscissa = 0;
         trj_mtx_.unlock();
@@ -567,8 +578,8 @@ bool ReplannerManager::sendRobotStateThread()
   double dt = 1/send_state_thread_frequency;
   double t = t_;
   double t_trj_thread = t_;
-  trajectory_msgs::JointTrajectoryPoint pnt = pnt_;
   Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
+  trajectory_msgs::JointTrajectoryPoint pnt;
 
   ros::Rate lp(send_state_thread_frequency);
   while(!stop_ && ros::ok())
@@ -588,11 +599,16 @@ bool ReplannerManager::sendRobotStateThread()
       t = t_;
     }
 
-    fast_interpolator_.interpolate(ros::Duration(t),pnt);
-    send_robot_mtx_.unlock();
+    //pnt = pnt_;
+    //if((current_configuration_-goal_conf).norm()<1e-3) stop_ = true;
+    //send_robot_mtx_.unlock();
 
+    fast_interpolator_.interpolate(ros::Duration(t),real_pnt_);
+    pnt = real_pnt_;
     Eigen::VectorXd point2project(pnt.positions.size());
     for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
+    real_pos_ = point2project;
+    send_robot_mtx_.unlock();
 
     if((point2project-goal_conf).norm()<1e-3) stop_ = true;
 
@@ -698,7 +714,6 @@ void ReplannerManager::displayThread()
     node_id +=1;
     marker_color = {0.5,0.5,0.5,1.0};
     disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
-    trj_mtx_.unlock();
     disp->defaultNodeSize();
 
     lp.sleep();
@@ -756,7 +771,7 @@ void ReplannerManager::spawnObjects()
         replanner_mtx_.lock();
         int size = replanner_->getCurrentPath()->getConnections().size();
         replanner_mtx_.unlock();
-        obj_conn_pos = size-3;
+        obj_conn_pos = size/2;
       }
       else
       {
