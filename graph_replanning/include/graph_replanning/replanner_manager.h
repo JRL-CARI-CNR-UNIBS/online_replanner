@@ -50,6 +50,7 @@ protected:
   bool display_replanning_success_;
   bool read_safe_scaling_;
   bool emergency_stop_;
+  bool current_path_changed_;
 
   int n_conn_;
   int pos_closest_obs_from_goal_repl_;
@@ -85,12 +86,11 @@ protected:
   std::thread spawn_obj_thread_;
   std::thread replanning_thread_;
   std::thread col_check_thread_;
-  std::thread trj_exec_thread_;
 
   std::mutex planning_mtx_;
-  std::mutex trj_mtx_;
-  std::mutex send_robot_mtx_;
   std::mutex checker_mtx_;
+  std::mutex trj_mtx_;
+  std::mutex paths_mtx_;
   std::mutex scene_mtx_;
   std::mutex replanner_mtx_;
 
@@ -120,7 +120,7 @@ protected:
   void collisionCheckThread();
   void displayThread();
   void spawnObjects();
-  void trajectoryExecutionThread();
+  bool trajectoryExecutionThread();
   bool sendRobotStateThread();
 
 public:
