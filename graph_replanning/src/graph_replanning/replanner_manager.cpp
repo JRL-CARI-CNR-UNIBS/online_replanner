@@ -113,21 +113,17 @@ void ReplannerManager::attributeInitialization()
   interpolator_.setTrajectory(tmp_trj_msg);
   interpolator_.setSplineOrder(1);
 
-  fast_interpolator_ = interpolator_;
-
   Eigen::VectorXd point2project(dof);
   interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
   configuration_replan_ = current_path_->projectOnClosestConnection(point2project);
   current_configuration_ = current_path_->getWaypoints().front();
-  real_pos_ = current_configuration_;
 
   n_conn_ = 0;
 
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
 
   interpolator_.interpolate(ros::Duration(t_),pnt_);
-  real_pnt_ = pnt_;
   new_joint_state_.position = pnt_.positions;
   new_joint_state_.velocity = pnt_.velocities;
   new_joint_state_.name = joint_names;
@@ -179,16 +175,16 @@ void ReplannerManager::replanningThread()
 
   bool replan = true;
   bool success = 0;
-  Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
-  Eigen::VectorXd point2project(pnt_replan_.positions.size());
-  Eigen::VectorXd past_configuration_replan = configuration_replan_;
-  Eigen::VectorXd projection;;
+  bool old_path_obstructed = path_obstructed_;
+  int n_conn_replan = 0;
   double past_abscissa;
   double abscissa;
-  int n_conn_replan = 0;
-  bool old_path_obstructed = path_obstructed_;
   double time_informedOnlineRepl;
   std::string string_dt;
+  Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
+  Eigen::VectorXd point2project(pnt_replan_.positions.size());
+  Eigen::VectorXd projection;
+  Eigen::VectorXd past_configuration_replan = configuration_replan_;
   PathPtr path2project_on;
   pathplan::PathPtr current_path_copy;
   std::vector<pathplan::PathPtr> other_paths_copy;
@@ -204,19 +200,19 @@ void ReplannerManager::replanningThread()
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
     trj_mtx_.unlock();
 
-    scene_mtx_.lock();
-    moveit_msgs::PlanningScene scn;
-    planning_scn_->getPlanningSceneMsg(scn);
-    checker_->setPlanningSceneMsg(scn);
-    scene_mtx_.unlock();
-
     replan =  (point2project-goal).norm()>1e-03;
 
     if(replan)
-    {
+    {    
+      scene_mtx_.lock();
+      moveit_msgs::PlanningScene scn;
+      planning_scn_->getPlanningSceneMsg(scn);
+      checker_->setPlanningSceneMsg(scn);
+      scene_mtx_.unlock();
+
       replanner_mtx_.lock();
       past_configuration_replan = configuration_replan_;
-      path2project_on = replanner_->getCurrentPath();   //CHIEDI SE PER RISPARMIARE TEMPO DEVO FARE UN CLONE O SE GIÀ COSÌ È OK
+      path2project_on = replanner_->getCurrentPath();   //CHIEDI SE PER RISPARMIARE TEMPO DEVO FARE UN CLONE O SE GIÀ COSÌ È OK (puntano all stesso oggetto)
       replanner_mtx_.unlock();
 
       past_abscissa = abscissa;
@@ -232,13 +228,11 @@ void ReplannerManager::replanningThread()
       for(const PathPtr path:other_paths_) other_paths_copy.push_back(path->clone());
       paths_mtx_.unlock();
 
+
       checker_mtx_.lock();
       pos_closest_obs_from_goal_repl_ = pos_closest_obs_from_goal_check_;
-      checker_mtx_.unlock();
 
-      checker_mtx_.lock();
       replanner_mtx_.lock();
-
       emergency_stop_ = false;  //reset emergency stop (if at the previous iteration it was set, informedOnlineRepl was stopped and a this new iteration can be reset)
 
       if(current_path_copy->findConnection(configuration_replan_) == NULL)
@@ -277,15 +271,14 @@ void ReplannerManager::replanningThread()
       replanner_mtx_.unlock();
       checker_mtx_.unlock();
 
-
       planning_mtx_.lock();
-      replanning_ = true;
 
+      replanning_ = true;
       ros::WallTime tic_rep=ros::WallTime::now();
       success =  replanner_->informedOnlineReplanning(2,1,time_informedOnlineRepl);
       ros::WallTime toc_rep=ros::WallTime::now();
-
       replanning_ = false;
+
       planning_mtx_.unlock();
 
       if((toc_rep-tic_rep).toSec()>=time_informedOnlineRepl/0.9 && display_timing_warning_) ROS_WARN("replanning duration: %f",(toc_rep-tic_rep).toSec());
@@ -315,29 +308,38 @@ void ReplannerManager::replanningThread()
 
         replanner_mtx_.lock();
         trj_mtx_.lock();
+        ros::WallTime tic = ros::WallTime::now();
+        ROS_INFO("DENTRO REPL");
 
+        ros::WallTime tic1 = ros::WallTime::now();
         replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
-        replanner_->simplifyReplannedPath(0.1);  //usa var locale e poi assegna a curr path
+        ros::WallTime toc1 = ros::WallTime::now();
+        replanner_->simplifyReplannedPath(0.01);  //usa var locale e poi assegna a curr path
+        ros::WallTime toc2 = ros::WallTime::now();
 
-        current_norm.data = replanner_->getCurrentPath()->getNormFromConf(current_configuration_); //real_pos_
+        double duration1 = (toc1-tic1).toSec();
+        double duration2 = (toc2-toc1).toSec();
+
+        current_norm.data = replanner_->getCurrentPath()->getNormFromConf(current_configuration_);
         new_norm.data = replanner_->getReplannedPath()->cost();
         time_replanning.data = (toc_rep-tic_rep).toSec();
 
         replanner_->setCurrentPath(replanner_->getReplannedPath());
 
+        ros::WallTime tic3 = ros::WallTime::now();
         paths_mtx_.lock();
         current_path_ = replanner_->getReplannedPath();
         current_path_changed_ = true;  //to warn the collision check thread that the current path is changed
         paths_mtx_.unlock();
+        ros::WallTime toc3 = ros::WallTime::now();
+        double duration3 = (toc3-tic3).toSec();
 
         tic_trj=ros::WallTime::now();
         moveit_msgs::RobotTrajectory tmp_trj_msg;
         trajectory_->setPath(current_path_);
-        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_); //real_pnt_
-
+        robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj(pnt_);
         trj->getRobotTrajectoryMsg(tmp_trj_msg);
         toc_trj=ros::WallTime::now();
-
         interpolator_.setTrajectory(tmp_trj_msg);
         interpolator_.setSplineOrder(1);
 
@@ -349,6 +351,9 @@ void ReplannerManager::replanningThread()
         past_abscissa = 0;
 
         trj_mtx_.unlock();
+        ros::WallTime toc = ros::WallTime::now();
+        double duration = (toc-tic).toSec();
+        ROS_INFO_STREAM("FUORI REPL: "<<duration<<" dur1: "<<duration1<<" dur2: "<<duration2<<" dur3"<<duration3);
         replanner_mtx_.unlock();
 
         checker_mtx_.lock();
@@ -390,11 +395,12 @@ void ReplannerManager::collisionCheckThread()
 {
   ros::Rate lp(collision_checker_thread_frequency_);
 
-  moveit_msgs::GetPlanningScene ps_srv;
-  std::vector<PathPtr> other_paths_copy;
-  PathPtr current_path_copy;
-  Eigen::VectorXd current_configuration_copy;
+  int other_paths_size;
   int pos_closest_obs_from_goal_check_copy;
+  Eigen::VectorXd current_configuration_copy;
+  PathPtr current_path_copy;
+  std::vector<PathPtr> other_paths_copy;
+  moveit_msgs::GetPlanningScene ps_srv;
 
   while (!stop_ && ros::ok())
   {
@@ -407,7 +413,6 @@ void ReplannerManager::collisionCheckThread()
       ROS_ERROR("call to srv not ok");
     }
     ros::WallTime toc_pln_call = ros::WallTime::now();
-
     checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);
     scene_mtx_.unlock();
 
@@ -425,32 +430,30 @@ void ReplannerManager::collisionCheckThread()
     ros::WallTime tic_check = ros::WallTime::now();
     bool path_obstructed = !(current_path_copy->isValidFromConf(current_configuration_copy,pos_closest_obs_from_goal_check_copy,checker_thread_cc_));
     for(const pathplan::PathPtr& path: other_paths_copy) path->isValid(checker_thread_cc_);
+    ros::WallTime toc_check = ros::WallTime::now();
 
     checker_mtx_.lock();
     pos_closest_obs_from_goal_check_ = pos_closest_obs_from_goal_check_copy;
     checker_mtx_.unlock();
 
     paths_mtx_.lock();
-    if(!current_path_changed_)
+    if(!current_path_changed_)  //if changed, it is useless checking current_path_copy
     {
       for(unsigned int z=0;z<current_path_->getConnections().size();z++)
       {
         current_path_->getConnections().at(z)->setCost(current_path_copy->getConnections().at(z)->getCost());
       }
     }
-    //ROS_INFO_STREAM("other_paths size: "<<other_paths_.size()<<" copy: "<<other_paths_copy.size());
 
-    int other_paths_size = std::min(other_paths_.size(),other_paths_copy.size());  //it may happen that between other_paths_ cloning and this point a replanning has succeed so the other_path_ vector has 1 path more respect to other_paths_copy, only for this iteration
+    other_paths_size = std::min(other_paths_.size(),other_paths_copy.size());  //it may happen that between other_paths_ cloning and this point a replanning has succeed so the other_path_ vector has 1 path more respect to other_paths_copy, only for this iteration
     for(unsigned int j=0; j<other_paths_size; j++)
     {
       for(unsigned int t=0;t<other_paths_.at(j)->getConnections().size();t++)
       {
-        //ROS_INFO_STREAM("other_paths conn size: "<<other_paths_.at(j)->getConnections().size()<<" copy: "<<other_paths_copy.at(j)->getConnections().size());
         other_paths_.at(j)->getConnections().at(t)->setCost(other_paths_copy.at(j)->getConnections().at(t)->getCost());
       }
     }
     paths_mtx_.unlock();
-    ros::WallTime toc_check = ros::WallTime::now();
 
     checker_mtx_.lock();
     replanner_mtx_.lock();
@@ -565,8 +568,12 @@ bool ReplannerManager::trajectoryExecutionThread()
 {
   Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
-  trajectory_msgs::JointTrajectoryPoint pnt;
   PathPtr path2project_on;
+  trajectory_msgs::JointTrajectoryPoint pnt;
+
+  ros::WallTime tic;
+  ros::WallTime toc;
+  double duration1,duration2,duration3,duration4,duration5;
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
@@ -575,7 +582,13 @@ bool ReplannerManager::trajectoryExecutionThread()
     ros::WallTime tic_tot = ros::WallTime::now();
     real_time_ += dt_;
 
+
+    tic = ros::WallTime::now();
     trj_mtx_.lock();
+    toc = ros::WallTime::now();
+    duration1 = (toc-tic).toSec();
+    tic = ros::WallTime::now();
+
     double scaling = 1.0;
     if(read_safe_scaling_)
     {      
@@ -588,20 +601,29 @@ bool ReplannerManager::trajectoryExecutionThread()
 
     t_+= scaling_*dt_;
 
+    toc = ros::WallTime::now();
+    duration2 = (toc-tic).toSec();
+    tic = ros::WallTime::now();
+
     interpolator_.interpolate(ros::Duration(t_),pnt_);
     pnt = pnt_;
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
     trj_mtx_.unlock();
+    toc = ros::WallTime::now();
+    duration3 = (toc-tic).toSec();
 
-    replanner_mtx_.lock();
-    path2project_on = replanner_->getCurrentPath();   //CHIEDI SE BASTA O DEVO FARNE LA COPIA
-    replanner_mtx_.unlock();
+    paths_mtx_.lock();
+    path2project_on = current_path_;   //CHIEDI SE BASTA O DEVO FARNE LA COPIA (puntano allo stesso oggetto)  //se no usa replanner_->getCurrentPath()
+    paths_mtx_.unlock();
 
+    tic = ros::WallTime::now();
     trj_mtx_.lock();
     past_current_configuration = current_configuration_;
     current_configuration_ = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
     trj_mtx_.unlock();
+    toc = ros::WallTime::now();
+    duration4 = (toc-tic).toSec();
 
     if((point2project-goal_conf).norm()<1e-3) stop_ = true;
 
@@ -625,6 +647,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     if(duration>(1/trj_exec_thread_frequency_) && display_timing_warning_)
     {
       ROS_WARN("Trj execution thread time expired: duration-> %f",duration);
+      ROS_INFO_STREAM("dur1: "<<duration1<<" dur2: "<<duration2<<" dur3: "<<duration3<<" dur4: "<<duration4);
     }
 
     lp.sleep();

@@ -58,6 +58,7 @@ bool Replanner::checkPathValidity(const CollisionCheckerPtr &this_checker)
 
 bool Replanner::simplifyReplannedPath(const double& distance)
 {
+  ros::WallTime tic = ros::WallTime::now();
   for(unsigned int i=0;i<replanned_path_->getConnections().size();i++)
   {
     if(replanned_path_->getConnections().at(i)->norm()<distance)
@@ -79,6 +80,9 @@ bool Replanner::simplifyReplannedPath(const double& distance)
     }
   }
   while(simplify);
+
+  ros::WallTime toc = ros::WallTime::now();
+  ROS_INFO_STREAM("n simpl: "<<count<<" time: "<<(toc-tic).toSec());
 
   return simplified;
 }
@@ -1262,7 +1266,15 @@ bool Replanner::informedOnlineReplanning(const int& informed,
         {
           if(actual_node_conn != NULL) path_conn.push_back(actual_node_conn);  //connection between the current config and the child of the current conn
 
-          subpath =  subpath1->getSubpathToNode(path1_node_vector.at(j));  //path between the current connection child and the node analyzed now //se il nodo corrisponde al figlio?
+          try
+          {
+            subpath =  subpath1->getSubpathToNode(path1_node_vector.at(j));  //path between the current connection child and the node analyzed now //se il nodo corrisponde al figlio?
+          }
+          catch(std::invalid_argument)
+          {
+            ROS_INFO_STREAM("CURR CONF: "<< current_configuration_.transpose()<<" START: "<<current_path_->getWaypoints().at(0).transpose()<<" NODE: "<< path1_node_vector.at(j)->getConfiguration().transpose());
+            throw std::invalid_argument("try catch");
+          }
 
           std::vector<ConnectionPtr> conn_sup = subpath->getConnections();
           path_conn.insert(path_conn.end(),conn_sup.begin(),conn_sup.end());

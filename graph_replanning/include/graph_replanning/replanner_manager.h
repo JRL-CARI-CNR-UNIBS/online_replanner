@@ -68,17 +68,14 @@ protected:
   ReplannerPtr replanner_;
   Eigen::VectorXd current_configuration_;
   Eigen::VectorXd configuration_replan_;
-  Eigen::VectorXd real_pos_;
   CollisionCheckerPtr checker_thread_cc_;
   CollisionCheckerPtr checker_;
   TrajectoryPtr trajectory_;
   planning_scene::PlanningScenePtr planning_scn_;
   planning_scene::PlanningScenePtr planning_scn_replanning_;
   trajectory_processing::SplineInterpolator interpolator_;
-  trajectory_processing::SplineInterpolator fast_interpolator_;
   trajectory_msgs::JointTrajectoryPoint pnt_;
   trajectory_msgs::JointTrajectoryPoint pnt_replan_;
-  trajectory_msgs::JointTrajectoryPoint real_pnt_ ;
   sensor_msgs::JointState new_joint_state_;
   robot_state::RobotStatePtr kinematic_state_;
 
