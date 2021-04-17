@@ -1065,6 +1065,7 @@ bool Replanner::informedOnlineReplanning(const int& informed,
   }
 
   NodePtr child = current_conn->getChild();
+  NodePtr parent = current_conn->getParent();
 
   NodePtr actual_node = std::make_shared<Node>(current_configuration_);
   ConnectionPtr actual_node_conn = NULL;
@@ -1078,7 +1079,7 @@ bool Replanner::informedOnlineReplanning(const int& informed,
     if(subpath1->cost() == std::numeric_limits<double>::infinity()) an_obstacle_ = true;
   }
 
-  if(current_configuration_ != child->getConfiguration())
+  if(current_configuration_ != child->getConfiguration() && current_configuration_ != parent->getConfiguration())
   {
     actual_node_conn = std::make_shared<Connection>(actual_node,child);
 
@@ -1102,6 +1103,12 @@ bool Replanner::informedOnlineReplanning(const int& informed,
       conn.insert(conn.end(),subpath1_conn.begin(),subpath1_conn.end());
     }
     else conn.push_back(actual_node_conn);
+  }
+  else if(current_configuration_ == parent->getConfiguration())  //es, if the current_conf is equal to path start
+  {
+    actual_node_conn = current_conn;
+    conn.push_back(actual_node_conn);
+    conn.insert(conn.end(),subpath1_conn.begin(),subpath1_conn.end());
   }
   else conn = subpath1_conn;
 
@@ -1262,7 +1269,7 @@ bool Replanner::informedOnlineReplanning(const int& informed,
 
       if(available_nodes) //calculating the cost of the replanned path found
       {
-        if(path1_node_vector.at(j)->getConfiguration() != child->getConfiguration())
+        if(path1_node_vector.at(j)->getConfiguration() != child->getConfiguration() && path1_node_vector.at(j)->getConfiguration() != parent->getConfiguration())
         {
           if(actual_node_conn != NULL) path_conn.push_back(actual_node_conn);  //connection between the current config and the child of the current conn
 
@@ -1284,6 +1291,10 @@ bool Replanner::informedOnlineReplanning(const int& informed,
           path_conn.insert(path_conn.end(),conn_sup.begin(),conn_sup.end());
 
           path = std::make_shared<Path>(path_conn,metrics_,checker_);
+        }
+        else if(path1_node_vector.at(j)->getConfiguration() == parent->getConfiguration())  //current conf is path start
+        {
+          path = new_path;
         }
         else    //the node analyzed is the child of the current connection
         {
