@@ -25,14 +25,14 @@ typedef std::shared_ptr<Replanner> ReplannerPtr;
 class Replanner: public std::enable_shared_from_this<Replanner>
 {
 protected:
-  Eigen::VectorXd current_configuration_;        // current robot conf
-  PathPtr current_path_;                         // current path traveled by the robot
-  PathPtr replanned_path_;                        // replanned path
-  std::vector<PathPtr> replanned_paths_vector_;   // vector of the 10 best replanned paths
-  std::vector<PathPtr> other_paths_;             // initial available paths
-  std::vector<PathPtr> admissible_other_paths_;  // available paths
-  std::vector<NodePtr> examined_nodes_;          // node considered during the replanning
-  TreeSolverPtr solver_;                         // solver
+  Eigen::VectorXd current_configuration_;
+  PathPtr current_path_;
+  PathPtr replanned_path_;
+  std::vector<PathPtr> replanned_paths_vector_;
+  std::vector<PathPtr> other_paths_;
+  std::vector<PathPtr> admissible_other_paths_;
+  std::vector<NodePtr> examined_nodes_;
+  TreeSolverPtr solver_;
   MetricsPtr metrics_;
   CollisionCheckerPtr checker_;
   Eigen::VectorXd lb_;
@@ -225,7 +225,7 @@ public:
   bool pathSwitch(const PathPtr& current_path, const NodePtr& node, const bool& succ_node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
 
   //It menages the replanning calling more times pathSwitch from different nodes and giving the correct set of available paths
-  bool informedOnlineReplanning(const int& informed, const bool& succ_node, const double &max_time  = std::numeric_limits<double>::infinity());
+  bool informedOnlineReplanning(const bool& succ_node, const double &max_time  = std::numeric_limits<double>::infinity());
 
 };
 }

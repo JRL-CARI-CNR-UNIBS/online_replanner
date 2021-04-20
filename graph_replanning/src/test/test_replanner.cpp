@@ -205,11 +205,11 @@ int main(int argc, char **argv)
   // //////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  //pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name);
-  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
+  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name);
+  pathplan::CollisionCheckerPtr checker_parallel = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
 
-  pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
-  disp.clearMarkers();
+  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scene,group_name,last_link);
+  disp->clearMarkers();
   ros::Duration(1).sleep();
   pathplan::Trajectory trajectory = pathplan::Trajectory(nh,planning_scene,group_name);
 
@@ -221,7 +221,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
-    int id=0;
+    int id=100;
     int id_wp = 1000;
     for (unsigned int i =0; i<n_paths; i++)
     {
@@ -229,16 +229,17 @@ int main(int argc, char **argv)
       pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
       pathplan::PathPtr solution = trajectory.computePath(start_conf, goal_conf,solver,optimize_path);
       path_vector.push_back(solution);
-      ros::Duration(0.1).sleep();
 
       std::vector<double> marker_color;
       if(i==0) marker_color = {0.5,0.5,0.0,1.0};
       if(i==1) marker_color = {0.0f,0.0f,1.0,1.0};
       if(i==2) marker_color = {1.0,0.0f,0.0f,1.0};
 
-      disp.displayPathAndWaypoints(solution,id,id_wp,"pathplan",marker_color);
-      id++;
+      disp->displayPathAndWaypoints(solution,id,id_wp,"pathplan",marker_color);
+      id +=1;
       id_wp +=50;
+
+      ros::Duration(0.5).sleep();
     }
 
     pathplan::PathPtr current_path = path_vector.front();
@@ -274,23 +275,7 @@ int main(int argc, char **argv)
         return 1;
       }
     }
-    // ////////////////////////////////////////////////////////////////////////////
-    int idx = 0;//current_path->getConnections().size()/2;
-    pathplan::SamplerPtr samp = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-    pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
-    solver->config(nh);
 
-    Eigen::VectorXd current_configuration = current_path->getWaypoints().at(0);//(current_path->getConnections().at(idx)->getChild()->getConfiguration() + current_path->getConnections().at(idx)->getParent()->getConfiguration())/2.0;
-
-    bool success;
-    bool succ_node = 1;
-    int informed = 2;
-
-    // ///////////////////////////////////////// VISUALIZATION OF CURRENT NODE ///////////////////////////////////////////////////////////
-    std::vector<double> marker_color_sphere_actual = {1.0,0.0,1.0,1.0};
-    disp.displayNode(std::make_shared<pathplan::Node>(current_configuration),id,"pathplan",marker_color_sphere_actual);
-    id++;
-    // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
     if(mobile_obstacle)
     {
       ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
@@ -311,7 +296,6 @@ int main(int argc, char **argv)
       pathplan::NodePtr obj_child = obj_conn->getChild();
       Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
       //Eigen::VectorXd obj_pos = obj_parent->getConfiguration()+(obj_child->getConfiguration()-obj_parent->getConfiguration())*0.8;
-
 
       pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
       moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
@@ -386,6 +370,18 @@ int main(int argc, char **argv)
 
 
     // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING/////////////////////////////////////////////////////
+
+    Eigen::VectorXd parent = current_path->getWaypoints().at(0);
+    Eigen::VectorXd child = current_path->getWaypoints().at(1);
+
+    Eigen::VectorXd current_configuration = parent + (child-parent)*0.3;
+
+    bool valid_checker = checker->checkConnFromConf(current_path->getConnections().at(0),current_configuration);
+    bool valid_checker_parallel = checker_parallel->checkConnFromConf(current_path->getConnections().at(0),current_configuration);
+    bool valid_checker_parallel1 = checker_parallel->checkConnection(current_path->getConnections().at(0));
+
+    ROS_INFO_STREAM("checker: "<<valid_checker<<" checker parallel: "<<valid_checker_parallel<<" check1: "<<valid_checker_parallel1);
+
     bool valid;
     valid =current_path->isValid();
     ROS_INFO_STREAM("current path valid: "<<valid);
@@ -396,6 +392,20 @@ int main(int argc, char **argv)
     valid = other_paths.at(1)->isValid();
     ROS_INFO_STREAM("path3 valid: "<<valid);
 
+    pathplan::SamplerPtr samp = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
+    pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
+    solver->config(nh);
+
+    // ///////////////////////////////////////// VISUALIZATION OF CURRENT NODE ///////////////////////////////////////////////////////////
+    std::vector<double> marker_color_sphere_actual = {1.0,0.0,1.0,1.0};
+    disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),id,"pathplan",marker_color_sphere_actual);
+    id++;
+    // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
+
+    bool success;
+    bool succ_node = 1;
+
+    ROS_INFO_STREAM("other paths: "<<other_paths.size());
     pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
 
     if(verbose_time)
@@ -405,16 +415,16 @@ int main(int argc, char **argv)
     }
     if(verbose_disp_informed)
     {
-      replanner.setInformedOnlineReplanningDisp(disp.pointer());
+      replanner.setInformedOnlineReplanningDisp(disp);
     }
     if(verbose_disp_pathSwitch)
     {
-      replanner.setPathSwitchDisp(disp.pointer());
+      replanner.setPathSwitchDisp(disp);
     }
 
     double time_repl = time;
     ros::WallTime tic = ros::WallTime::now();
-    success =  replanner.informedOnlineReplanning(informed,succ_node,time_repl);
+    success =  replanner.informedOnlineReplanning(succ_node,time_repl);
     ros::WallTime toc = ros::WallTime::now();
     if((toc-tic).toSec()>time) ROS_ERROR("TIME OUT");
     ROS_INFO_STREAM("DURATION: "<<(toc-tic).toSec()<<" success: "<<success<< " n sol: "<<replanner.getReplannedPathVector().size());
@@ -439,8 +449,8 @@ int main(int argc, char **argv)
       marker_color = {1.0,1.0,0.0,1.0};
 
       std::vector<double> marker_scale(3,0.01);
-      disp.changeConnectionSize(marker_scale);
-      disp.displayPath(replanner.getReplannedPath(),id,"pathplan",marker_color);
+      disp->changeConnectionSize(marker_scale);
+      disp->displayPath(replanner.getReplannedPath(),id,"pathplan",marker_color);
       //disp.displayPath(new_path,id,"pathplan",marker_color);
     }
 
