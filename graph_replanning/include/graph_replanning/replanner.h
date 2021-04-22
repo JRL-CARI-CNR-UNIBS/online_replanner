@@ -40,9 +40,11 @@ protected:
   double time_first_sol_;
   double time_replanning_;
   double available_time_;
-  bool success_;
+  double pathSwitch_max_time_;
   double pathSwitch_cycle_time_mean_;
   double informedOnlineReplanning_cycle_time_mean_;
+  double time_percentage_variability_;
+  bool success_;
   bool an_obstacle_;
   bool emergency_stop_;
 
@@ -70,10 +72,19 @@ protected:
   void simplifyAdmissibleOtherPaths(const bool& no_available_paths, const PathPtr& confirmed_subpath_from_path2, const int& confirmed_connected2path_number, const NodePtr &starting_node_of_pathSwitch, const std::vector<PathPtr>& reset_other_paths, bool& flag_other_paths);
 
   //It computes the time constraint for PathSwitch & Connect2Goal.
-  double maxSolverTime(const double& initial_value, const ros::WallTime& tic, const ros::WallTime& tic_cycle, const double &percentage_variability);
+  double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
 
   //It concatenates the connecting path with the subpath2. It is used in PathSwitch & Connect2Goal.
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2, const NodePtr& path1_node, const NodePtr& path2_node);
+
+  //It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, bool &directly_connected, PathPtr &connecting_path);
+
+  //Optimize connecting path. used in PathSwitch and Connect2Goal.
+  void optimizePath(PathPtr &connecting_path, const ros::WallTime &tic, const ros::WallTime &tic_cycle);
+
+  //It computes the subpath of current path from current configuration to goal. It is used to initialize the replanned path in InformedOnlineReplanning.
+  PathPtr computeSubpathFromCurrentConf();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -241,10 +252,10 @@ public:
   bool connect2goal(const PathPtr &current_path, const NodePtr& node, PathPtr &new_path);
 
   //Starting from node of current_path_ it tries to find a connection to all the available paths of admissible_other_paths_
-  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, const bool& succ_node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
+  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
 
   //It menages the replanning calling more times pathSwitch from different nodes and giving the correct set of available paths
-  bool informedOnlineReplanning(const bool& succ_node, const double &max_time  = std::numeric_limits<double>::infinity());
+  bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
 
 };
 }

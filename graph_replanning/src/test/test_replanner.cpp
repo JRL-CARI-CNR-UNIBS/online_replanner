@@ -403,7 +403,6 @@ int main(int argc, char **argv)
     // //////////////////////////////////////// ADDING A MOBILE OBSTACLE ////////////////////////////////////////////////////////////////
 
     bool success;
-    bool succ_node = 1;
 
     ROS_INFO_STREAM("other paths: "<<other_paths.size());
     pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
@@ -424,7 +423,7 @@ int main(int argc, char **argv)
 
     double time_repl = time;
     ros::WallTime tic = ros::WallTime::now();
-    success =  replanner.informedOnlineReplanning(succ_node,time_repl);
+    success =  replanner.informedOnlineReplanning(time_repl);
     ros::WallTime toc = ros::WallTime::now();
     if((toc-tic).toSec()>time) ROS_ERROR("TIME OUT");
     ROS_INFO_STREAM("DURATION: "<<(toc-tic).toSec()<<" success: "<<success<< " n sol: "<<replanner.getReplannedPathVector().size());

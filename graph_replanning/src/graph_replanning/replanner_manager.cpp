@@ -275,7 +275,7 @@ void ReplannerManager::replanningThread()
 
       replanning_ = true;
       ros::WallTime tic_rep=ros::WallTime::now();
-      success =  replanner_->informedOnlineReplanning(1,time_informedOnlineRepl);
+      success =  replanner_->informedOnlineReplanning(time_informedOnlineRepl);
       ros::WallTime toc_rep=ros::WallTime::now();
       replanning_ = false;
 
