@@ -5,9 +5,10 @@ last_link: "open_tip"
 moving_obs: true
 disp_verb_informed: false
 disp_verb_pathSwitch: false
-time_verb: false
-time_for_repl: 0.09
+time_verb: true
+time_for_repl: 0.15
 opt_path: true
-start_configuration: [1.5, 0.0, -0.7, 0.0, 1.5, 0.0]
-stop_configuration: [0.5, 0.0, -0.7, 0.0, 1.5, 0.0]
+starting_obs_pos: [0.6,0.3,1.5] #[0.6,0.0,1.5]
+start_configuration: [2.5, -1.4232, 1.4232, 0.0, 1.8398, 0.0]
+stop_configuration: [0.5207, -0.7290, 0.6596, 0.0, 1.2150, 0.0]
 n_test: 1

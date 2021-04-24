@@ -108,6 +108,16 @@ int main(int argc, char **argv)
     n_test = 1;
   }
 
+  std::vector<double> static_obs_pos;
+  if(test_name == "sharework")
+  {
+    if(!nh.getParam("starting_obs_pos",static_obs_pos))
+    {
+      static_obs_pos = {1.0,0.0,1.5};
+    }
+    ROS_ERROR("pos obs static not defined");
+  }
+
   ROS_INFO_STREAM("test: "<<test_name<<" mobile ob: "<<mobile_obstacle);
 
   // /////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
@@ -149,9 +159,9 @@ int main(int argc, char **argv)
     object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
-    obj.pose.pose.position.x = 1.0;
-    obj.pose.pose.position.y = 0.0;
-    obj.pose.pose.position.z = 1.5;
+    obj.pose.pose.position.x = static_obs_pos[0];
+    obj.pose.pose.position.y = static_obs_pos[1];
+    obj.pose.pose.position.z = static_obs_pos[2];
 
     obj.pose.pose.orientation.x = 0.0;
     obj.pose.pose.orientation.y = 0.0;
@@ -245,6 +255,11 @@ int main(int argc, char **argv)
     pathplan::PathPtr current_path = path_vector.front();
     std::vector<pathplan::PathPtr> other_paths = {path_vector.at(1),path_vector.at(2)};
 
+    Eigen::VectorXd parent = current_path->getConnections().front()->getParent()->getConfiguration();
+    Eigen::VectorXd child = current_path->getConnections().front()->getChild()->getConfiguration();
+
+    Eigen::VectorXd current_configuration = parent + (child-parent)*0.3;
+
     // ///////////////////////////////////////////////////////////////////////////
     if(test_name == "sharework")
     {
@@ -290,7 +305,7 @@ int main(int argc, char **argv)
       object_loader_msgs::Object obj;
       obj.object_type="scatola";
 
-      int obj_conn_pos = 0;//current_path->getConnections().size()-1;
+      int obj_conn_pos = current_path->getConnections().size()-3;
       pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
       pathplan::NodePtr obj_parent = obj_conn->getParent();
       pathplan::NodePtr obj_child = obj_conn->getChild();
@@ -371,11 +386,6 @@ int main(int argc, char **argv)
 
     // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING/////////////////////////////////////////////////////
 
-    Eigen::VectorXd parent = current_path->getWaypoints().at(0);
-    Eigen::VectorXd child = current_path->getWaypoints().at(1);
-
-    Eigen::VectorXd current_configuration = parent + (child-parent)*0.3;
-
     bool valid_checker = checker->checkConnFromConf(current_path->getConnections().at(0),current_configuration);
     bool valid_checker_parallel = checker_parallel->checkConnFromConf(current_path->getConnections().at(0),current_configuration);
     bool valid_checker_parallel1 = checker_parallel->checkConnection(current_path->getConnections().at(0));
@@ -404,7 +414,9 @@ int main(int argc, char **argv)
 
     bool success;
 
-    ROS_INFO_STREAM("other paths: "<<other_paths.size());
+    //other_paths.at(0)->getConnections().back()->setCost(std::numeric_limits<double>::infinity());
+    //other_paths.at(1)->getConnections().back()->setCost(std::numeric_limits<double>::infinity());
+
     pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
 
     if(verbose_time)
@@ -429,16 +441,6 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("DURATION: "<<(toc-tic).toSec()<<" success: "<<success<< " n sol: "<<replanner.getReplannedPathVector().size());
     ros::Duration(0.01).sleep();
 
-    /*replanner.setAvailableTime(std::numeric_limits<double>::infinity());
-    pathplan::PathPtr new_path;
-    success = replanner.connect2goal(current_path,current_path->getConnections().at(1)->getChild(),new_path);
-
-    bool goal_ok = checker->check(current_path->getConnections().back()->getChild()->getConfiguration());
-    bool parent_ok = checker->check(current_path->getConnections().back()->getParent()->getConfiguration());
-
-    ROS_INFO_STREAM("goal: "<<goal_ok);
-    ROS_INFO_STREAM("parent: "<<parent_ok);*/
-
     if(success)
     {
       ROS_WARN("SUCCESS");
@@ -450,10 +452,83 @@ int main(int argc, char **argv)
       std::vector<double> marker_scale(3,0.01);
       disp->changeConnectionSize(marker_scale);
       disp->displayPath(replanner.getReplannedPath(),id,"pathplan",marker_color);
-      //disp.displayPath(new_path,id,"pathplan",marker_color);
     }
 
+    current_path = replanner.getReplannedPath();
+
     ros::Duration(2).sleep();
+
+    if(mobile_obstacle)
+    {
+      ros::ServiceClient add_obj=nh.serviceClient<object_loader_msgs::AddObjects>("add_object_to_scene");
+
+      if (!add_obj.waitForExistence(ros::Duration(10)))
+      {
+        ROS_FATAL("srv not found");
+        return 1;
+      }
+
+      object_loader_msgs::AddObjects srv;
+      object_loader_msgs::Object obj;
+      obj.object_type="scatola";
+
+      int obj_conn_pos = current_path->getConnections().size()-2;
+      pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
+      pathplan::NodePtr obj_parent = obj_conn->getParent();
+      pathplan::NodePtr obj_child = obj_conn->getChild();
+      Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
+      //Eigen::VectorXd obj_pos = obj_parent->getConfiguration()+(obj_child->getConfiguration()-obj_parent->getConfiguration())*0.8;
+
+      pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
+      moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
+      tf::poseEigenToMsg(obj_pos_state.getGlobalLinkTransform(last_link),obj.pose.pose);
+      obj.pose.header.frame_id="world";
+
+      srv.request.objects.push_back(obj);
+      if (!add_obj.call(srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
+      if (!srv.response.success)
+      {
+        ROS_ERROR("srv error");
+        return 1;
+      }
+      else
+      {
+        remove_srv.request.obj_ids.clear();
+        for (const std::string& str: srv.response.ids)
+        {
+          remove_srv.request.obj_ids.push_back(str);
+        }
+      }
+      // ///////////////////////////////////UPDATING THE PLANNING SCENE WITH THE NEW OBSTACLE ////////////////////////////////////////
+
+      if (!ps_client.waitForExistence(ros::Duration(10)))
+      {
+        ROS_ERROR("unable to connect to /get_planning_scene");
+        return 1;
+      }
+
+      moveit_msgs::GetPlanningScene ps_srv;
+
+      if (!ps_client.call(ps_srv))
+      {
+        ROS_ERROR("call to srv not ok");
+        return 1;
+      }
+
+      if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
+      {
+        ROS_ERROR("unable to update planning scene");
+        return 1;
+      }
+    }
+
+    replanner.setCurrentPath(current_path);
+    success =  replanner.informedOnlineReplanning(time_repl);
+
 
     //Removing mobile obs
     if (!remove_obj.waitForExistence(ros::Duration(10)))

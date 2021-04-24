@@ -51,6 +51,7 @@ protected:
   bool informedOnlineReplanning_disp_;
   bool pathSwitch_disp_;
   DisplayPtr disp_;
+  int pathSwitch_path_id_;
 
   bool informedOnlineReplanning_verbose_;
   bool pathSwitch_verbose_;
@@ -63,13 +64,13 @@ protected:
   std::vector<PathPtr> sortPathsOnDistance(const NodePtr& node);
 
   //It finds the set of nodes of path to try to connect to starting from node. The goal is excluded. Used in PathSwitch.
-  std::vector<NodePtr> nodes2connect2(const PathPtr& path, const NodePtr &node);
+  std::vector<NodePtr> nodes2connect2(const PathPtr& path, const NodePtr &this_node);
 
   //It fills the vector of nodes from which starting PathSwitch and set available_nodes flag. It is used in informedOnlineReplanning.
   std::vector<NodePtr> startingNodesForPathSwitch(const std::vector<ConnectionPtr>& subpath1_conn, const NodePtr& current_node, const double& current2child_conn_cost, const int& idx,  bool& available_nodes);
 
   //It simplifies the admissible_other_paths vector substituting the path on which the current starting node for PathSwitch resides with the subpath from that node. It is used in InformedOnlineReplanning
-  void simplifyAdmissibleOtherPaths(const bool& no_available_paths, const PathPtr& confirmed_subpath_from_path2, const int& confirmed_connected2path_number, const NodePtr &starting_node_of_pathSwitch, const std::vector<PathPtr>& reset_other_paths, bool& flag_other_paths);
+  void simplifyAdmissibleOtherPaths(const bool& no_available_paths, const PathPtr& confirmed_subpath_from_path2, const int& confirmed_connected2path_number, const NodePtr &starting_node_of_pathSwitch, const std::vector<PathPtr>& reset_other_paths);
 
   //It computes the time constraint for PathSwitch & Connect2Goal.
   double maxSolverTime(const ros::WallTime& tic, const ros::WallTime& tic_cycle);
@@ -78,13 +79,10 @@ protected:
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2, const NodePtr& path1_node, const NodePtr& path2_node);
 
   //It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
-  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, bool &directly_connected, PathPtr &connecting_path);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
 
   //Optimize connecting path. used in PathSwitch and Connect2Goal.
   void optimizePath(PathPtr &connecting_path, const ros::WallTime &tic, const ros::WallTime &tic_cycle);
-
-  //It computes the subpath of current path from current configuration to goal. It is used to initialize the replanned path in InformedOnlineReplanning.
-  PathPtr computeSubpathFromCurrentConf();
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
