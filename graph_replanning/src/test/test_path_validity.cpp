@@ -11,6 +11,7 @@
 #include <graph_core/solvers/rrt_star.h>
 #include <graph_core/solvers/path_solver.h>
 #include <graph_core/moveit_collision_checker.h>
+#include <graph_core/parallel_moveit_collision_checker.h>
 #include <graph_core/local_informed_sampler.h>
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/planning_interface/planning_interface.h>
@@ -35,18 +36,23 @@ int main(int argc, char **argv)
 
   ros::NodeHandle nh;
   // /////////////////////////////////UPLOADING THE ROBOT ARM/////////////////////////////////////////////////////////////
-  std::string test = "cartesian";
+  std::string test;
+  nh.getParam("test",test);
+
+  std::vector<double> start;
+  nh.getParam("start",start);
+
+  std::vector<double> goal;
+  nh.getParam("goal",goal);
 
   std::string group_name;
-  std::string base_link;
-  std::string last_link;
+  nh.getParam("group_name",group_name);
 
-  if(test=="cartesian")
-  {
-    group_name = "cartesian_arm";
-    base_link = "world";
-    last_link = "end_effector";
-  }
+  std::string base_link;
+  nh.getParam("base_link",base_link);
+
+  std::string last_link;
+  nh.getParam("last_link",last_link);
 
   moveit::planning_interface::MoveGroupInterface move_group(group_name);
   robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
@@ -94,14 +100,24 @@ int main(int argc, char **argv)
   }
 
   // /////////////////////////////////////////////DEFINING START AND GOAL///////////////////////////////////////////////////////
-  Eigen::VectorXd start_conf(dof);
-  if(test=="cartesian") start_conf << 0.0,0.0,0.0;
 
+  Eigen::VectorXd start_conf(dof);
   Eigen::VectorXd goal_conf(dof);
-  if(test=="cartesian") goal_conf << 0.8,0.8,0.75;
+
+  for(unsigned int d=0;d<dof;d++)
+  {
+    ROS_INFO_STREAM("s: "<<start[d]<<" g: "<<goal[d]);
+
+    start_conf[d]=start.at(d);
+    goal_conf[d]=goal.at(d);
+  }
+
+  ROS_INFO_STREAM("start: "<<start_conf.transpose());
+  ROS_INFO_STREAM("goal: "<<goal_conf.transpose());
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name);
+  pathplan::CollisionCheckerPtr checker_parallel = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
 
   // //////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
   pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
@@ -219,9 +235,13 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("conf last valid: "<<valid);*/
 
     //valid =current_path->isValidFromConf(current_configuration);
-    valid =current_path->isValid();
+    valid =current_path->isValid(checker);
     double cost = current_path->cost();
     ROS_INFO_STREAM("conf valid: "<<valid <<" cost: "<<cost);
+
+    valid =current_path->isValid(checker_parallel);
+    cost = current_path->cost();
+    ROS_INFO_STREAM("PARALLEL conf valid: "<<valid <<" cost: "<<cost);
 
     ros::Duration(2).sleep();
   }

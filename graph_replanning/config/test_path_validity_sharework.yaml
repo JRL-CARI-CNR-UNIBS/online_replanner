@@ -1,0 +1,6 @@
+test: sharework
+group_name: "manipulator"
+base_link: "base_link"
+last_link: "open_tip"
+start: [2.5, -1.4232, 1.4232, 0.0, 1.8398, 0.0]
+goal: [0.5207, -0.7290, 0.6596, 0.0, 1.2150, 0.0]

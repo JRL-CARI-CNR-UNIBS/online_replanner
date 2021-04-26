@@ -666,7 +666,7 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
   //double opt_time = maxSolverTime(tic,tic_cycle);
 
   ros::WallTime tic_opt = ros::WallTime::now();
-  path->warp(max_time);
+  //path->warp(max_time);
   ros::WallTime toc_opt = ros::WallTime::now();
 
   if(pathSwitch_verbose_)
