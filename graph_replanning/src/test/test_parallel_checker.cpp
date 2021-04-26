@@ -118,7 +118,7 @@ int main(int argc, char **argv)
   ROS_WARN("CREAZIONE PATH");
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name, 5, 0.01);
+  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name, 5, 0.001);
 
   pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
   disp.clearMarkers();
@@ -180,11 +180,11 @@ int main(int argc, char **argv)
     object_loader_msgs::Object obj;
     obj.object_type="scatola";
 
-    int obj_conn_pos = current_path->getConnections().size()/2;
+    int obj_conn_pos = idx; //current_path->getConnections().size()/2;
     pathplan::ConnectionPtr obj_conn = current_path->getConnections().at(obj_conn_pos);
     pathplan::NodePtr obj_parent = obj_conn->getParent();
     pathplan::NodePtr obj_child = obj_conn->getChild();
-    Eigen::VectorXd obj_pos = (obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
+    Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + 0.8*(obj_child->getConfiguration()-obj_parent->getConfiguration());//(obj_child->getConfiguration()+obj_parent->getConfiguration())/2;
 
     pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
     moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
@@ -233,35 +233,31 @@ int main(int argc, char **argv)
 
 
     // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING//////////////////////////////////////////////////
-    pathplan::CollisionCheckerPtr checker_base = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name, 0.01);
+    pathplan::CollisionCheckerPtr checker_base = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name, 0.001);
 
     bool valid;
-    valid =current_path->isValid();
+    valid =current_path->isValid(checker);
     ROS_INFO_STREAM("current path valid: "<<valid);
 
-    valid =current_path->isValidFromConf(current_configuration);
+    valid =current_path->isValidFromConf(current_configuration,checker);
     ROS_INFO_STREAM("current path valid from conf: "<<valid);
 
-    current_path->setChecker(checker_base);
-
-    valid =current_path->isValid();
+    valid =current_path->isValid(checker_base);
     ROS_INFO_STREAM("BASE current path valid: "<<valid);
 
-    valid =current_path->isValidFromConf(current_configuration);
+    valid =current_path->isValidFromConf(current_configuration,checker_base);
     ROS_INFO_STREAM("BASE current path valid from conf: "<<valid);
 
-    valid = other_paths.at(0)->isValid();
+    valid = other_paths.at(0)->isValid(checker);
     ROS_INFO_STREAM("path2 valid: "<<valid);
 
-    other_paths.at(0)->setChecker(checker_base);
-    valid = other_paths.at(0)->isValid();
+    valid = other_paths.at(0)->isValid(checker_base);
     ROS_INFO_STREAM("BASE path2 valid: "<<valid);
 
-    valid = other_paths.at(1)->isValid();
+    valid = other_paths.at(1)->isValid(checker);
     ROS_INFO_STREAM("path3 valid: "<<valid);
 
-    other_paths.at(1)->setChecker(checker_base);
-    valid = other_paths.at(1)->isValid();
+    valid = other_paths.at(1)->isValid(checker_base);
     ROS_INFO_STREAM("BASE path3 valid: "<<valid);
 
     ros::Duration(5).sleep();

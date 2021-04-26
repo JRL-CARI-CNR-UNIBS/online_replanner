@@ -106,18 +106,13 @@ int main(int argc, char **argv)
 
   for(unsigned int d=0;d<dof;d++)
   {
-    ROS_INFO_STREAM("s: "<<start[d]<<" g: "<<goal[d]);
-
     start_conf[d]=start.at(d);
     goal_conf[d]=goal.at(d);
   }
 
-  ROS_INFO_STREAM("start: "<<start_conf.transpose());
-  ROS_INFO_STREAM("goal: "<<goal_conf.transpose());
-
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name);
-  pathplan::CollisionCheckerPtr checker_parallel = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
+  pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name,0.001);
+  pathplan::CollisionCheckerPtr checker_parallel = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name,5,0.001);
 
   // //////////////////////////////////////////PATH PLAN & VISUALIZATION////////////////////////////////////////////////////////
   pathplan::Display disp = pathplan::Display(planning_scene,group_name,last_link);
@@ -235,12 +230,13 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("conf last valid: "<<valid);*/
 
     //valid =current_path->isValidFromConf(current_configuration);
-    valid =current_path->isValid(checker);
+    pathplan::PathPtr current_path_parallel = current_path->clone();
+    valid =current_path->isValidFromConf(current_configuration,checker);
     double cost = current_path->cost();
     ROS_INFO_STREAM("conf valid: "<<valid <<" cost: "<<cost);
 
-    valid =current_path->isValid(checker_parallel);
-    cost = current_path->cost();
+    valid =current_path_parallel->isValidFromConf(current_configuration,checker_parallel);
+    cost = current_path_parallel->cost();
     ROS_INFO_STREAM("PARALLEL conf valid: "<<valid <<" cost: "<<cost);
 
     ros::Duration(2).sleep();
