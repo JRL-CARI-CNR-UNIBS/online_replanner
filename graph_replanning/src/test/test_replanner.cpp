@@ -417,7 +417,7 @@ int main(int argc, char **argv)
     //other_paths.at(0)->getConnections().back()->setCost(std::numeric_limits<double>::infinity());
     //other_paths.at(1)->getConnections().back()->setCost(std::numeric_limits<double>::infinity());
 
-    pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
+    pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker_parallel, lb, ub);
 
     if(verbose_time)
     {
@@ -432,6 +432,8 @@ int main(int argc, char **argv)
     {
       replanner.setPathSwitchDisp(disp);
     }
+
+    ros::Duration(5).sleep();
 
     double time_repl = time;
     ros::WallTime tic = ros::WallTime::now();
@@ -453,10 +455,16 @@ int main(int argc, char **argv)
       disp->changeConnectionSize(marker_scale);
       disp->displayPath(replanner.getReplannedPath(),id,"pathplan",marker_color);
     }
+    else
+    {
+      return 0;
+    }
+
+    disp->nextButton("press NEXT");
 
     current_path = replanner.getReplannedPath();
 
-    ros::Duration(2).sleep();
+    ros::Duration(10).sleep();
 
     if(mobile_obstacle)
     {
@@ -529,6 +537,18 @@ int main(int argc, char **argv)
     replanner.setCurrentPath(current_path);
     success =  replanner.informedOnlineReplanning(time_repl);
 
+    if(success)
+    {
+      ROS_WARN("SUCCESS");
+
+      std::vector<int> marker_id; marker_id.push_back(-101);
+      std::vector<double> marker_color;
+      marker_color = {1.0,1.0,0.0,1.0};
+
+      std::vector<double> marker_scale(3,0.01);
+      disp->changeConnectionSize(marker_scale);
+      disp->displayPath(replanner.getReplannedPath(),id,"pathplan",marker_color);
+    }
 
     //Removing mobile obs
     if (!remove_obj.waitForExistence(ros::Duration(10)))

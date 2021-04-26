@@ -42,7 +42,7 @@ protected:
   double available_time_;
   double pathSwitch_max_time_;
   double pathSwitch_cycle_time_mean_;
-  double informedOnlineReplanning_cycle_time_mean_;
+  //double informedOnlineReplanning_cycle_time_mean_;
   double time_percentage_variability_;
   bool success_;
   bool an_obstacle_;
@@ -82,7 +82,7 @@ protected:
   bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
 
   //Optimize connecting path. used in PathSwitch and Connect2Goal.
-  void optimizePath(PathPtr &connecting_path, const ros::WallTime &tic, const ros::WallTime &tic_cycle);
+  void optimizePath(PathPtr &connecting_path, const double &max_time);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
