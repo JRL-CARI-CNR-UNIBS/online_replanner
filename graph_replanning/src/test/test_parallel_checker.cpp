@@ -224,15 +224,8 @@ int main(int argc, char **argv)
       return 1;
     }
 
-    checker->setPlanningSceneMsg(ps_srv.response.scene);
-    /*if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
-    {
-      ROS_ERROR("unable to update planning scene");
-      return 1;
-    }*/
-
-
     // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING//////////////////////////////////////////////////
+    checker->setPlanningSceneMsg(ps_srv.response.scene);
     pathplan::CollisionCheckerPtr checker_base = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name, 0.001);
 
     bool valid;

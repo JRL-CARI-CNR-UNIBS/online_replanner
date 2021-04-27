@@ -709,7 +709,7 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
   std::vector<double> marker_scale_sphere(3,0.025);
   std::vector<double> marker_color_sphere = {0.5,0.5,0.5,1.0};
 
-  std::vector<double> marker_color = {1.0,0.5,0.0,1.0};//{1.0,1.0,0.0,1.0};
+  std::vector<double> marker_color = {1.0,0.5,0.0,1.0};
   std::vector<double> marker_scale(3,0.01);
 
   bool success = false;

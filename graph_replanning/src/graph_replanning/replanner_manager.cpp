@@ -206,7 +206,7 @@ void ReplannerManager::replanningThread()
     {    
       scene_mtx_.lock();
       moveit_msgs::PlanningScene scn;
-      planning_scn_->getPlanningSceneMsg(scn);
+      planning_scn_->getPlanningSceneMsg(scn); //updated by checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);
       checker_->setPlanningSceneMsg(scn);
       scene_mtx_.unlock();
 
@@ -413,7 +413,7 @@ void ReplannerManager::collisionCheckThread()
       ROS_ERROR("call to srv not ok");
     }
     ros::WallTime toc_pln_call = ros::WallTime::now();
-    checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);
+    checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);  //this function update the planning scene
     scene_mtx_.unlock();
 
     other_paths_copy.clear();

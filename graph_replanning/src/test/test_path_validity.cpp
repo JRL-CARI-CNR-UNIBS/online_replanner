@@ -172,7 +172,6 @@ int main(int argc, char **argv)
     pathplan::NodePtr obj_parent = obj_conn->getParent();
     pathplan::NodePtr obj_child = obj_conn->getChild();
     Eigen::VectorXd obj_pos = obj_parent->getConfiguration() + (0.8)*(obj_child->getConfiguration()-obj_parent->getConfiguration());
-    //Eigen::VectorXd obj_pos = obj_child->getConfiguration();
 
     pathplan::MoveitUtils moveit_utils(planning_scene,group_name);
     moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
@@ -215,6 +214,8 @@ int main(int argc, char **argv)
     }
 
     // ///////////////////////////////////////////////////PATH CHECKING & REPLANNING/////////////////////////////////////////////////////
+    checker_parallel->setPlanningSceneMsg(ps_srv.response.scene);
+
     bool valid;
     /*valid =current_path->isValid();
     ROS_INFO_STREAM("current path valid: "<<valid);
@@ -230,14 +231,26 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("conf last valid: "<<valid);*/
 
     //valid =current_path->isValidFromConf(current_configuration);
+
+
     pathplan::PathPtr current_path_parallel = current_path->clone();
     valid =current_path->isValidFromConf(current_configuration,checker);
     double cost = current_path->cost();
-    ROS_INFO_STREAM("conf valid: "<<valid <<" cost: "<<cost);
+    ROS_INFO_STREAM("BASE path valid from conf: "<<valid <<" cost: "<<cost);
 
     valid =current_path_parallel->isValidFromConf(current_configuration,checker_parallel);
     cost = current_path_parallel->cost();
-    ROS_INFO_STREAM("PARALLEL conf valid: "<<valid <<" cost: "<<cost);
+    ROS_INFO_STREAM("PARALLEL path valid from conf: "<<valid <<" cost: "<<cost);
+
+    valid = checker_parallel->checkConnection(current_path->getConnections().at(0));
+    ROS_INFO_STREAM("PARALLEL check first conn: "<<valid);
+    valid = checker_parallel->checkConnFromConf(current_path->getConnections().at(0),current_configuration);
+    ROS_INFO_STREAM("PARALLEL check first conn from conf: "<<valid);
+
+    valid = checker->checkConnection(current_path->getConnections().at(0));
+    ROS_INFO_STREAM("BASE check first conn: "<<valid);
+    valid = checker->checkConnFromConf(current_path->getConnections().at(0),current_configuration);
+    ROS_INFO_STREAM("BASE check first conn from conf: "<<valid);
 
     ros::Duration(2).sleep();
   }
