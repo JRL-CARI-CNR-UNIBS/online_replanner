@@ -636,8 +636,6 @@ bool Replanner::computeConnectingPath(const NodePtr& path1_node_fake, const Node
   {
     connecting_path = solver_->getSolution();
     solver_has_solved = true;
-
-    ROS_INFO_STREAM("n con: "<<connecting_path->getConnections().size());
   }
   else
   {
@@ -665,6 +663,7 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
   //path_solver.setPath(connecting_path);
   //double opt_time = maxSolverTime(tic,tic_cycle);
 
+  if(max_time<=0.0) return;
   ros::WallTime tic_opt = ros::WallTime::now();
   path->warp(max_time);
   ros::WallTime toc_opt = ros::WallTime::now();
@@ -1371,7 +1370,7 @@ bool Replanner::informedOnlineReplanning(const double &max_time)
     available_time_ = MAX_TIME-(toc-tic).toSec();
 
     //if((!an_obstacle_ && available_time_<time_percentage_variability_*informedOnlineReplanning_cycle_time_mean_ && informedOnlineReplanning_cycle_time_mean_ != std::numeric_limits<double>::infinity()) || available_time_<=0.0)
-    if(exit)
+    if(exit || j==0)
     {
       if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<min_time_pathSwitch);
       //if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<time_percentage_variability_*informedOnlineReplanning_cycle_time_mean_);
