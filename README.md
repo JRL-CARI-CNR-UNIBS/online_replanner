@@ -2,10 +2,10 @@
 
 The repository contains the implementation of an anytime path re-planner and optimizer. The re-planner avoids un-predicted obstacles and/or optimizes the current path switching between pre-computed paths. It is based on Moveit! to get information about the environment.
 
-##Build/Installation
+## Build/Installation
 The software can be installed with the following [rosinstall file](online_replanner.rosinstall).
 
-##Packages
+## Packages
 ## **graph_replanning**
 It contains three classes:
  1. replanner: given the current robot configuration and a set of pre-computed paths, it searches for a new path that avoids obstacles and/or optimize the current one.
