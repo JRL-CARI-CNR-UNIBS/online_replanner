@@ -1,16 +1,18 @@
-#**graph_replanning**
+# **graph_replanning**
 
-The package **graph_replanning** implements and anytime informed path replanner and optimizer.
+The package **graph_replanning** implements an anytime informed path replanner and optimizer (AIPRO).
 It contains two main classes:
  1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner.h)
  2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner_manager.h)
 
-## replanner
+ replanner_manager executes the robot motion and, in the meanwhile, it continuously replan, calling several times the replanner.
+
+## Replanner
 Given the current robot configuration and a set of pre-computed paths, it searches for a new path that avoids obstacles and/or optimize the current one. The main method of this class is the following:
 ```cpp
 bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
 ```
-which menages the entire replanning procedure.
+which menages the entire replanning procedure from a specific current robot configuration.
 
 This is a brief explanation to create a replanner object.
 You need to include:
@@ -77,11 +79,11 @@ pathplan::PathPtr replanned_path = replanner.getReplannedPath();
 ```
 You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner.cpp).
 
-## replanner_manager
-The replanner manager manages the whole motion from a starting robot configuration to a goal configuration in a dynamic environment. It interpolates the robot trajectory and sends the new robot states and continuously calls the replanner to avoid obstacles or to optimize the current path. To do this, it uses three threads:
-- `trajectory execution thread`: to interpolate and execute the trajectory
-- `collision checking thread`: continuously updates the planning scene to check which paths are colliding and to provide updated information on the state of the environment to the replanner
-- `replanning thread`: it continuously tries to find new paths from the robot current configuration to avoid obstacles or to optimizes the current one. It contains a replanner which calls the method `informedOnlineReplanning`
+## Replanner manager
+The replanner manager manages the whole motion from a starting robot configuration to a goal configuration in a dynamic environment. It interpolates the robot trajectory, sends the new robot states and continuously calls the replanner to avoid obstacles or to optimize the current path. To do this, it uses three threads:
+- `trajectory execution thread`: to interpolate and execute the trajectory.
+- `collision checking thread`: continuously updates the planning scene to check which paths are colliding and to provide updated information about the state of the environment to the replanner.
+- `replanning thread`: it continuously tries to find new paths from the robot current configuration to avoid obstacles or to optimizes the current one. It contains a replanner which calls the method `informedOnlineReplanning` at each iteration from the current robot configuration.
 
 The replanning framework listens to two speed overrides topics, `/speed_ovr` and `/safe_ovr_1`, in which the overrides must be published as values between 0 (robot static) and 100 (nominal velocity).
 
