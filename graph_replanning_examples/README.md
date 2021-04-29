@@ -19,13 +19,13 @@ Instead, these parameters can be modified:
 ```yaml
 display_step_by_step: false
 number_paths: 4
-max_time_for_replanning: 0.1
+max_time_for_replanning: 0.1 #seconds
 start_configuration: [0.0, 0.0, 0.0]
 stop_configuration: [0.8, 0.8, 0.8]
 ```
-If `display_step_by_step` is true, you can see the replanner algorithm execution step by step, its evolution and the intermediate solutions. You can advance in each step by pressing the button <kbd>Next</kbd> on Rviz (see Figure). Note that if this parameter is true, no time constraints are given to the replanner.
-`number_paths` defines the number of paths which will computed before launching the replanner and which the replanner will exploits to find a new free path. Recommended value 3-6 paths. NOTE: these paths should explore different parts of the workspace in order to make the replanning more efficient.
-`max_time_for_replanning` defines the maximum time that the replanner can use to replan and optimize the solution. The higher the value, the better the solutions found. Complex cells require a bigger amount of time.
+- If `display_step_by_step` is true, you can see the replanner algorithm execution step by step, its evolution and the intermediate solutions. You can advance in each step by pressing the button <kbd>Next</kbd> on Rviz (see Figure). Note that if this parameter is true, no time constraints are given to the replanner.
+- `number_paths` defines the number of paths which will computed before launching the replanner and which the replanner will exploits to find a new free path. Recommended value 3-6 paths. NOTE: these paths should explore different parts of the workspace in order to make the replanning more efficient.
+- `max_time_for_replanning` defines the maximum time that the replanner can use to replan and optimize the solution. The higher the value, the better the solutions found. Complex cells require a bigger amount of time.
 
 #### **usage**
 In order to use the replanner with your robotic cell, you need to do the following preliminary steps:
@@ -54,5 +54,45 @@ To run the example, type in the terminal:
 
 `roslaunch graph_replanning_examples example_replanner_manager_cartesian.launch`
 
-[example_replanner_manager_cartesian.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner_cartesian.yaml) contains some parameters which can be changed.
+[example_replanner_manager_cartesian.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner_manager_cartesian.yaml) contains some parameters which can be changed.
 These parameters are related to the robot definition, do not change them in this example:
+```yaml
+group_name: "cartesian_arm"
+base_link: "world"
+last_link: "end_effector"
+```
+These parameters define the frequencies used to send the new robot states and to update the planning scene. They can be modified, but carefully and without deviating much from the reference values:
+```yaml
+trj_execution_thread_frequency: 500
+collision_checker_thread_frequency: 30
+```
+Instead, these parameter can be chosen by the user:
+```yaml
+spawn_objs: true
+number_paths: 4
+dt_replan_restricted: 0.050 #seconds
+dt_replan_relaxed: 0.100 #seconds
+scaling: 1.0
+start_configuration: [0.0, 0.0, 0.0]
+stop_configuration: [0.8, 0.8, 0.8]
+```
+- If `spawn_objs` is true, two red boxes appears on the robot path during the motion, forcing the replanner to find a new feasible path.
+- `number_paths` defines the number of paths which will computed before launching the replanner manager and which the replanner will exploits to find a new free path. Recommended value 3-6 paths. NOTE: these paths should explore different parts of the workspace in order to make the replanning more efficient.
+- `dt_replan_restricted` and `dt_replan_relaxed` defines the maximum time used by the replanner to find a solution when, respectively, there is an obstacle on the current path (replan to avoid obstacles) and when the current path is free (replan to optimize the current path). `dt_replan_restricted` should be a value lower than `dt_replan_relaxed` because when an obstacle is obstructing the current path, the priority is to find a solution quickly, to the detriment of its quality. Instead, when the current path is free, the aim is to optimize it, so the replanner can use much more time. These values ​​depend on the complexity of the robotic cell. For complex industrial cells, reference values for `dt_replan_restricted` are 0.100-0.150 seconds, while 0.150-0.200 seconds for `dt_replan_relaxed`.
+- `scaling` is a user-defined override of the velocity of the robot. It is a value between 0.0 (robot static) and 1.0 (nominal velocity).
+
+#### **usage**
+In order to use the replanner manager with your robotic cell, you need to do the following preliminary steps:
+
+> Create a moveit package (see <a href="http://docs.ros.org/kinetic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html">tutorial</a>)
+
+> Copy and change the name of the files [example_replanner_manager.launch](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/launch/example_replanner_manager.launch) and [example_replanner_manager.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner_manager.yaml) and modify the fields marked with CHANGE IT
+
+> in RViz:
+
+>> check on *Add* in the Display widgets, add a *Marker* visualization
+
+>> In the *Marker* visualization, select as Marker topic */marker_visualization_topic*
+
+
+Now you should be able to run your example.

@@ -3,6 +3,6 @@ base_link: "world"
 last_link: "end_effector"
 display_step_by_step: false
 number_paths: 4
-max_time_for_replanning: 0.1
+max_time_for_replanning: 0.1 #seconds
 start_configuration: [0.0, 0.0, 0.0]
 stop_configuration: [0.8, 0.8, 0.8]

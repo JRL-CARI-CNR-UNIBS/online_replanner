@@ -4,10 +4,10 @@ last_link: "end_effector"
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 
-spawn_objs: false
+spawn_objs: true
 number_paths: 4
-dt_replan_restricted: 0.050
-dt_replan_relaxed: 0.100
-scaling: 1
+dt_replan_restricted: 0.050 #seconds
+dt_replan_relaxed: 0.100 #seconds
+scaling: 1.0
 start_configuration: [0.0, 0.0, 0.0]
 stop_configuration: [0.8, 0.8, 0.8]
