@@ -1,16 +1,37 @@
 # online_replanner
 
-The repository contains the implementation of an anytime path re-planner and optimizer. The re-planner avoids un-predicted obstacles and/or optimizes the current path switching between pre-computed paths. It is based on Moveit! to get information about the environment.
+The repository contains the implementation of an anytime informed path replanner and optimizer (***AIPRO***). The re-planner avoids un-predicted obstacles and/or optimizes the current path switching between pre-computed paths. It is based on Moveit! to get information about the environment.
+
+You can read technical specifications about this replanner [here](https://arxiv.org/abs/2103.13245).
 
 ## Build/Installation
 The software can be installed with the following [rosinstall file](online_replanner.rosinstall).
 
 ## Packages
-### **graph_replanning**
-It contains three classes:
- 1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner.h): given the current robot configuration and a set of pre-computed paths, it searches for a new path that avoids obstacles and/or optimize the current one.
- 2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner_manager.h): it interpolates the robot trajectory and sends the new robot state, updates information about obstacles and continuously calls the replanner to avoid them or to optimize the current path.
- 3. [trajectory](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/trajectory.h): it provides some useful methods to compute paths and trajectories.
+### **graph_replanning [see README](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/README.md)**
+It contains two main classes:
+ 1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner.h)
+ 2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner_manager.h)
 
-### **graph_replanning_examples**
+### **graph_replanning_examples [see README](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/README.md)**
 It contains some useful examples of usage of the replanner and replanner manager. It provides also a base on which run the replanner and/or the replanner manager on your robotic cell.
+
+## Work in progress
+AIPRO is continuosly evolving. If you finds errors or if you have some suggestions, [please let us know](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/issues).
+
+## Developer Contact
+### **Authors**
+- Cesare Tonola (<mailto::c.tonola001@unibs.it>)
+- Manuel Beschi (<mailto::manuel.beschi@stiima.cnr.it>)
+
+## Acknowledgements
+AIPRO is developed by CNR-STIIMA (http://www.stiima.cnr.it/)
+
+***
+
+![EC-H2020](Documentation/Sharework.png) [ShareWork webpage](https://sharework-project.eu/)
+
+![EC-H2020](Documentation/flag_yellow.jpg)
+
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under grant agreement No. 820807.
+This website reflects only the author’s view and the European Commission is not responsible for any use that may be made of the information it contains.

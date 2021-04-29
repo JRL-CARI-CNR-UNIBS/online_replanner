@@ -595,6 +595,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     if(read_safe_scaling_)
     {
       scaling_ = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
+      //metti controllo sui valori pubblicati
     }
     else
     {

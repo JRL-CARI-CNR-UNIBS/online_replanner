@@ -1,0 +1,14 @@
+group_name: "group_name" #moveit move group name  ***CHANGE IT***
+base_link: "base_link"    #***CHANGE IT***
+last_link: "last_link"    #***CHANGE IT***
+trj_execution_thread_frequency: 500
+collision_checker_thread_frequency: 30
+
+read_safe_scaling: false #if true, it read the speed overrides from /speed_ovr and /safe_ovr_1
+spawn_objs: true #if true, some red boxes will appear on the current path during the motion
+number_paths: 4 #number of pre-computed paths, reccomended value 3-6 paths
+dt_replan_restricted: 0.050 #maximum time for replanning, in seconds, when the current path is obstructed
+dt_replan_relaxed: 0.100 #maximum time for replanning, in seconds, when the current path is not obstructed
+scaling: 1.0 #if read_safe_scaling is true, this will not be considered
+start_configuration: [0.0, 0.0, 0.0] #starting robot configuration
+stop_configuration: [0.8, 0.8, 0.8] #ending robot configuration
