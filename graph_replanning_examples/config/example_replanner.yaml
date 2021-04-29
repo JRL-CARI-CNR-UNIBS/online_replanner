@@ -3,7 +3,7 @@ base_link: "base_link"    #***CHANGE IT***
 last_link: "last_link"    #***CHANGE IT***
 
 display_step_by_step: false  #if true it shows the algorithm execution step by step, with paths and intermediate solutions visualization
-number_paths: 4 #number of pre-computed paths
+number_paths: 4 #number of pre-computed paths, reccomended value 3-6 paths
 max_time_for_replanning: 0.1 #maximum time for replanning, in seconds
 start_configuration: [0.0, 0.0, 0.0] #starting robot configuration
 stop_configuration: [0.8, 0.8, 0.8]  #ending robot configuration

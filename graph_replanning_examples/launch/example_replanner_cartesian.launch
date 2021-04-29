@@ -12,8 +12,7 @@
   <node pkg="graph_replanning_examples"
         name="example_replanner"
         type="example_replanner"
-        output="screen"
-        launch-prefix="gdb -ex run --args" >
+        output="screen" >
   </node>
 
 </launch>

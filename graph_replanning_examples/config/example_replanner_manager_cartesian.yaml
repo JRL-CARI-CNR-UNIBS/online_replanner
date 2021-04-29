@@ -1,9 +1,13 @@
 group_name: "cartesian_arm"
 base_link: "world"
 last_link: "end_effector"
-display_step_by_step: false
+trj_execution_thread_frequency: 500
+collision_checker_thread_frequency: 30
+
+spawn_objs: false
 number_paths: 4
-max_time_for_replanning: 0.1 #seconds
+dt_replan_restricted: 0.050
+dt_replan_relaxed: 0.100
+scaling: 1
 start_configuration: [0.0, 0.0, 0.0]
 stop_configuration: [0.8, 0.8, 0.8]
-number_of_connection_on_which_current_conf_is: 3

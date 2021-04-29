@@ -5,14 +5,12 @@
   <rosparam command="load" file="$(find graph_replanning_examples)/config/example_replanner.yaml"/>  <!-- ***CHANGE IT*** -->
   <include file="$(find {your_package}_moveit_config)/launch/demo.launch"/>   <!-- ***CHANGE IT*** -->
   <node pkg="object_loader" name="context_manager_node" type="context_manager_node" respawn="true" output="screen"/>
-
   <node pkg="object_loader" name="scene_spawner" type="scene_spawner" output="screen"/>
 
   <node pkg="graph_replanning_examples"
         name="example_replanner"
         type="example_replanner"
-        output="screen"
-        launch-prefix="gdb -ex run --args" >
+        output="screen" >
   </node>
 
 </launch>

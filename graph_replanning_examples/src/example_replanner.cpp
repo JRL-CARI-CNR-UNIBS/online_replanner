@@ -174,7 +174,7 @@ int main(int argc, char **argv)
   if (!add_obj.waitForExistence(ros::Duration(10)))
   {
     ROS_FATAL("srv not found");
-    return 1;
+    return 0;
   }
 
   object_loader_msgs::Object obj;
@@ -196,7 +196,7 @@ int main(int argc, char **argv)
   if (!add_obj.call(add_srv))
   {
     ROS_ERROR("call to srv not ok");
-    return 1;
+    return 0;
   }
   if (!add_srv.response.success)
   {
@@ -215,13 +215,13 @@ int main(int argc, char **argv)
   if (!ps_client.call(ps_srv))
   {
     ROS_ERROR("call to srv not ok");
-    return 1;
+    return 0;
   }
 
   if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
   {
     ROS_ERROR("unable to update planning scene");
-    return 1;
+    return 0;
   }
 
   checker->setPlanningSceneMsg(ps_srv.response.scene);

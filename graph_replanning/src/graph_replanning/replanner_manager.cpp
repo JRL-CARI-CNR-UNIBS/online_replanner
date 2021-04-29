@@ -121,6 +121,10 @@ void ReplannerManager::attributeInitialization()
 
   n_conn_ = 0;
 
+  //PathPtr current_path = current_path_->clone();
+  //std::vector<PathPtr> other_paths;
+  //for(const PathPtr& path:other_paths_)other_paths.push_back(path->clone());
+
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
 
   interpolator_.interpolate(ros::Duration(t_),pnt_);
@@ -203,7 +207,7 @@ void ReplannerManager::replanningThread()
     replan =  (point2project-goal).norm()>1e-03;
 
     if(replan)
-    {    
+    {
       scene_mtx_.lock();
       moveit_msgs::PlanningScene scn;
       planning_scn_->getPlanningSceneMsg(scn); //updated by checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);
@@ -227,7 +231,6 @@ void ReplannerManager::replanningThread()
       other_paths_copy.clear();
       for(const PathPtr path:other_paths_) other_paths_copy.push_back(path->clone());
       paths_mtx_.unlock();
-
 
       checker_mtx_.lock();
       pos_closest_obs_from_goal_repl_ = pos_closest_obs_from_goal_check_;
@@ -309,7 +312,7 @@ void ReplannerManager::replanningThread()
         replanner_mtx_.lock();
         trj_mtx_.lock();
         ros::WallTime tic = ros::WallTime::now();
-        ROS_INFO("DENTRO REPL");
+        //ROS_INFO("DENTRO REPL");
 
         ros::WallTime tic1 = ros::WallTime::now();
         replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
@@ -353,7 +356,7 @@ void ReplannerManager::replanningThread()
         trj_mtx_.unlock();
         ros::WallTime toc = ros::WallTime::now();
         double duration = (toc-tic).toSec();
-        ROS_INFO_STREAM("FUORI REPL: "<<duration<<" dur1: "<<duration1<<" dur2: "<<duration2<<" dur3"<<duration3);
+        //ROS_INFO_STREAM("FUORI REPL: "<<duration<<" dur1: "<<duration1<<" dur2: "<<duration2<<" dur3"<<duration3);
         replanner_mtx_.unlock();
 
         checker_mtx_.lock();
@@ -416,10 +419,10 @@ void ReplannerManager::collisionCheckThread()
     checker_thread_cc_->setPlanningSceneMsg(ps_srv.response.scene);  //this function update the planning scene
     scene_mtx_.unlock();
 
-    other_paths_copy.clear();
     paths_mtx_.lock();
-    for(const PathPtr& path: other_paths_) other_paths_copy.push_back(path->clone());
     current_path_copy = current_path_->clone();
+    other_paths_copy.clear();
+    for(const PathPtr& path: other_paths_) other_paths_copy.push_back(path->clone());
     current_path_changed_ = false;
     paths_mtx_.unlock();
 
@@ -582,7 +585,6 @@ bool ReplannerManager::trajectoryExecutionThread()
     ros::WallTime tic_tot = ros::WallTime::now();
     real_time_ += dt_;
 
-
     tic = ros::WallTime::now();
     trj_mtx_.lock();
     toc = ros::WallTime::now();
@@ -591,12 +593,12 @@ bool ReplannerManager::trajectoryExecutionThread()
 
     double scaling = 1.0;
     if(read_safe_scaling_)
-    {      
-        scaling_ = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
+    {
+      scaling_ = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
     }
     else
     {
-        scaling_ = scaling_from_param_;
+      scaling_ = scaling_from_param_;
     }
 
     t_+= scaling_*dt_;
@@ -614,7 +616,7 @@ bool ReplannerManager::trajectoryExecutionThread()
     duration3 = (toc-tic).toSec();
 
     paths_mtx_.lock();
-    path2project_on = current_path_;   //CHIEDI SE BASTA O DEVO FARNE LA COPIA (puntano allo stesso oggetto)  //se no usa replanner_->getCurrentPath()
+    path2project_on = current_path_->clone();   //CHIEDI SE BASTA O DEVO FARNE LA COPIA (puntano allo stesso oggetto)  //se no usa replanner_->getCurrentPath()
     paths_mtx_.unlock();
 
     tic = ros::WallTime::now();
