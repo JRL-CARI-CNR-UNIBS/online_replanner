@@ -2,8 +2,8 @@
 
 The package **graph_replanning** implements an anytime informed path replanner and optimizer (AIPRO).
 It contains two main classes:
- 1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner.h)
- 2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner_manager.h)
+ 1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning/include/graph_replanning/replanner.h)
+ 2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning/include/graph_replanning/replanner_manager.h)
 
  replanner_manager executes the robot motion and, in the meanwhile, it continuously replans, calling several times the replanner.
 
@@ -77,7 +77,7 @@ pathplan::Replanner replanner = pathplan::Replanner(current_configuration, curre
 bool success =  replanner.informedOnlineReplanning(time_replanning);
 pathplan::PathPtr replanned_path = replanner.getReplannedPath();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner.cpp).
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/src/example_replanner.cpp).
 
 ## Replanner manager
 The replanner manager manages the whole motion from a starting robot configuration to a goal configuration in a dynamic environment. It interpolates the robot trajectory, sends the new robot states and continuously calls the replanner to avoid obstacles or to optimize the current path. To do this, it uses three threads:
@@ -147,4 +147,4 @@ Finally, create the replanner manager and start the execution:
 pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
 replanner_manager->start();
 ```
-You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner_manager.cpp).
+You can find a complete example code [here](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/src/example_replanner_manager.cpp).

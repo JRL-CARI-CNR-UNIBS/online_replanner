@@ -3,12 +3,12 @@ The package **graph_replanning_examples** provides some usage examples, for the 
 
 ## **Replanner**
 ### **Example**
-[example_replanner_cartesian.cpp](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner.cpp) is a ready-to-use example of the replanner functioning. The aim of this example is to show how the replanning algorithm works, calling it from a specific robot configuration. In this example, the robot is a simple pink sphere moving in the three-dimensional Cartesian space, in which there is a large grey obstacle. Initially, a user-defined number of paths is computed considering the static grey obstacle and they are displayed on Rviz; then, a new obstacle (a red box) is placed on the current path (the dark green one). Finally, the replanner is called to find a new path, which will be displayed in yellow.
+[example_replanner_cartesian.cpp](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/src/example_replanner.cpp) is a ready-to-use example of the replanner functioning. The aim of this example is to show how the replanning algorithm works, calling it from a specific robot configuration. In this example, the robot is a simple pink sphere moving in the three-dimensional Cartesian space, in which there is a large grey obstacle. Initially, a user-defined number of paths is computed considering the static grey obstacle and they are displayed on Rviz; then, a new obstacle (a red box) is placed on the current path (the dark green one). Finally, the replanner is called to find a new path, which will be displayed in yellow.
 To run the example, type in the terminal:
 
 `roslaunch graph_replanning_examples example_replanner_cartesian.launch`
 
-[example_replanner_cartesian.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner_cartesian.yaml) contains some parameters which can be changed.
+[example_replanner_cartesian.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/config/example_replanner_cartesian.yaml) contains some parameters which can be changed.
 These parameters are related to the robot definition, do not change them in this example:
 ```yaml
 group_name: "cartesian_arm"
@@ -45,16 +45,16 @@ In order to use the replanner with your robotic cell, you need to do the followi
 
 Now you should be able to run your example.
 
-![](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/Documentation/example_replanner.png)
+![](Documentation/example_replanner.png)
 
 ## **Replanner manager**
 ### **Example**
-[example_replanner_manager_cartesian.cpp](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner_manager.cpp) is a ready-to-use example of the replanner manager functioning. In this example, the robot is a simple pink sphere moving in the three-dimensional Cartesian space, in which there is a large grey obstacle. Initially, a user-defined number of paths is computed considering the static grey obstacle and they are displayed on Rviz; then, the robot starts moving along a yellow path and during the motion two new obstacles (red boxes) appear on the robot current path. The replanner manager will notify the replanner, which will find a new feasible path.
+[example_replanner_manager_cartesian.cpp](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/src/example_replanner_manager.cpp) is a ready-to-use example of the replanner manager functioning. In this example, the robot is a simple pink sphere moving in the three-dimensional Cartesian space, in which there is a large grey obstacle. Initially, a user-defined number of paths is computed considering the static grey obstacle and they are displayed on Rviz; then, the robot starts moving along a yellow path and during the motion two new obstacles (red boxes) appear on the robot current path. The replanner manager will notify the replanner, which will find a new feasible path.
 To run the example, type in the terminal:
 
 `roslaunch graph_replanning_examples example_replanner_manager_cartesian.launch`
 
-[example_replanner_manager_cartesian.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner_manager_cartesian.yaml) contains some parameters which can be changed.
+[example_replanner_manager_cartesian.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/config/example_replanner_manager_cartesian.yaml) contains some parameters which can be changed.
 These parameters are related to the robot definition, do not change them in this example:
 ```yaml
 group_name: "cartesian_arm"
