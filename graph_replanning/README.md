@@ -5,7 +5,7 @@ It contains two main classes:
  1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner.h)
  2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner_manager.h)
 
- replanner_manager executes the robot motion and, in the meanwhile, it continuously replan, calling several times the replanner.
+ replanner_manager executes the robot motion and, in the meanwhile, it continuously replans, calling several times the replanner.
 
 ## Replanner
 Given the current robot configuration and a set of pre-computed paths, it searches for a new path that avoids obstacles and/or optimize the current one. The main method of this class is the following:
@@ -45,7 +45,7 @@ for (unsigned int idx = 0; idx < dof; idx++)
 }
 ```
 
-Then create a set of paths:
+Then, create a set of paths:
 ```cpp
 pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
 pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);
@@ -120,7 +120,7 @@ for (unsigned int idx = 0; idx < dof; idx++)
 }
 ```
 
-Then create a set of paths:
+Then, create a set of paths:
 ```cpp
 pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
 pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name);

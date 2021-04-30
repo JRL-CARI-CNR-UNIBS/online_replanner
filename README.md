@@ -13,7 +13,7 @@ It contains two main classes:
  1. [replanner](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner.h)
  2. [replanner_manager](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning/include/graph_replanning/replanner_manager.h)
 
- replanner_manager executes the robot motion and, in the meanwhile, it continuously replan, calling several times the replanner.
+ replanner_manager executes the robot motion and, in the meanwhile, it continuously replans, calling several times the replanner.
 
 ### **graph_replanning_examples [see README](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/README.md)**
 It contains some useful examples of usage of the replanner and replanner manager. It provides also a base on which run the replanner and/or the replanner manager on your robotic cell.

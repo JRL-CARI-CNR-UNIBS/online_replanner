@@ -81,7 +81,7 @@ stop_configuration: [0.8, 0.8, 0.8]
 - `number_paths` defines the number of paths which will be computed before launching the replanner manager and which the replanner will exploit to find a new free path. Recommended value 3-6 paths. NOTE: these paths should explore different parts of the workspace in order to make the replanning more effective.
 - `dt_replan_restricted` and `dt_replan_relaxed` defines the maximum time used by the replanner to find a solution when, respectively, there is an obstacle on the current path (replan to avoid obstacles) and when the current path is free (replan to optimize the current path). `dt_replan_restricted` should be a value lower than `dt_replan_relaxed` because when an obstacle is obstructing the current path, the priority is to find a solution quickly, to the detriment of its quality. Instead, when the current path is free, the aim is to optimize it, so the replanner can use much more time. These values ​​depend on the complexity of the robotic cell. For complex industrial cells, reference values for `dt_replan_restricted` are 0.100-0.150 seconds, while 0.150-0.200 seconds for `dt_replan_relaxed`.
 - `scaling` is a user-defined override of the velocity of the robot. It is a value between 0.0 (robot static) and 1.0 (nominal velocity).
-- If `read_safe_scaling` is true, `scaling` is not considered, but the overrides published on the topics `\speed_ovr` and `\safe_ovr_1` (values between 0 and 100) are considered.
+- If `read_safe_scaling` is true, `scaling` is not considered, but the overrides published on the topics `/speed_ovr` and `/safe_ovr_1` (values between 0 and 100) are considered.
 
 ### **Usage**
 In order to use the replanner manager with your robotic cell, you need to do the following preliminary steps:
