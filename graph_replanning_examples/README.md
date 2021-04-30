@@ -45,7 +45,7 @@ In order to use the replanner with your robotic cell, you need to do the followi
 
 Now you should be able to run your example.
 
-![](Documentation/example_replanner.png)
+![](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/Documentation/example_replanner.png)
 
 ## **Replanner manager**
 ### **Example**
