@@ -84,6 +84,7 @@ stop_configuration: [0.8, 0.8, 0.8]
 - If `read_safe_scaling` is true, `scaling` is not considered, but the overrides published on the topics `/speed_ovr` and `/safe_ovr_1` (values between 0 and 100) are considered.
 
 You can launch the example with a 6 degree-of-freedom robot, typing:
+
 `roslaunch graph_replanning_examples example_replanner_6dof.launch`
 
 ### **Usage**
