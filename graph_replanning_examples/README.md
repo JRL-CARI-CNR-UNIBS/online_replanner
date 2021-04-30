@@ -30,9 +30,9 @@ stop_configuration: [0.8, 0.8, 0.8]
 ### **Usage**
 In order to use the replanner with your robotic cell, you need to do the following preliminary steps:
 
-> Create a moveit package (see <a href="http://docs.ros.org/kinetic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html">tutorial</a>)
+> Create a moveit package (see <a href="http://docs.ros.org/melodic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html">tutorial</a>)
 
-> Copy and change the name of the files [example_replanner.launch](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/launch/example_replanner.launch) and [example_replanner.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner.yaml) and modify the fields marked with CHANGE IT
+> Copy and change the name of the files [example_replanner.launch](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/launch/example_replanner.launch) and [example_replanner.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/config/example_replanner.yaml) and modify the fields marked with **CHANGE IT**
 
 > in RViz:
 
@@ -90,9 +90,9 @@ You can launch the example with a 6 degree-of-freedom robot, typing:
 ### **Usage**
 In order to use the replanner manager with your robotic cell, you need to do the following preliminary steps:
 
-> Create a moveit package (see <a href="http://docs.ros.org/kinetic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html">tutorial</a>)
+> Create a moveit package (see <a href="http://docs.ros.org/melodic/api/moveit_tutorials/html/doc/setup_assistant/setup_assistant_tutorial.html">tutorial</a>)
 
-> Copy and change the name of the files [example_replanner_manager.launch](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/launch/example_replanner_manager.launch) and [example_replanner_manager.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/config/example_replanner_manager.yaml) and modify the fields marked with CHANGE IT
+> Copy and change the name of the files [example_replanner_manager.launch](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/launch/example_replanner_manager.launch) and [example_replanner_manager.yaml](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning_examples/config/example_replanner_manager.yaml) and modify the fields marked with **CHANGE IT**
 
 > in RViz:
 
