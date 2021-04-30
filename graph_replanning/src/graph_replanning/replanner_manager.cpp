@@ -216,7 +216,7 @@ void ReplannerManager::replanningThread()
 
       replanner_mtx_.lock();
       past_configuration_replan = configuration_replan_;
-      path2project_on = replanner_->getCurrentPath();   //CHIEDI SE PER RISPARMIARE TEMPO DEVO FARE UN CLONE O SE GIÀ COSÌ È OK (puntano all stesso oggetto)
+      path2project_on = replanner_->getCurrentPath();
       replanner_mtx_.unlock();
 
       past_abscissa = abscissa;
@@ -824,24 +824,17 @@ void ReplannerManager::spawnObjects()
   ros::Rate lp(0.5*trj_exec_thread_frequency_);
 
   bool object_spawned = false;
-  bool second_object_spawned = true;
-  bool third_object_spawned = true;
+  bool second_object_spawned = false;
   while (!stop_ && ros::ok())
   {
     // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
-    if(real_time_>=1.10 && !third_object_spawned)  //1.5
-    {
-      third_object_spawned = true;
-      object_spawned = false;
-    }
-
-    if(real_time_>=1.0 && !second_object_spawned)
+    if(real_time_>=2.0 && !second_object_spawned)
     {
       second_object_spawned = true;
       object_spawned = false;
     }
 
-    if(!object_spawned && real_time_>=0.50)
+    if(!object_spawned && real_time_>=1.0)
     {
       if (!add_obj_.waitForExistence(ros::Duration(10)))
       {
@@ -859,38 +852,26 @@ void ReplannerManager::spawnObjects()
       trj_mtx_.unlock();
       replanner_mtx_.unlock();
 
-      if(third_object_spawned)
-      {
-        obj_conn_pos = idx_current_conn;
+      replanner_mtx_.lock();
+      int size = replanner_->getCurrentPath()->getConnections().size();
+      replanner_mtx_.unlock();
 
-        replanner_mtx_.lock();
-        int size = replanner_->getCurrentPath()->getConnections().size();
-        replanner_mtx_.unlock();
-        obj_conn_pos = size/2;
-      }
-      else
-      {
-        replanner_mtx_.lock();
-        int size = replanner_->getCurrentPath()->getConnections().size();
-        replanner_mtx_.unlock();
+      std::srand(time(NULL));
+      obj_conn_pos = (rand() % (size-idx_current_conn)) + idx_current_conn;
 
-        std::srand(time(NULL));
-        obj_conn_pos = (rand() % (size-idx_current_conn)) + idx_current_conn;
-
-        if(obj_conn_pos == idx_current_conn) obj_conn_pos +=1;  //ELIMINA
-
-      }
       pathplan::ConnectionPtr obj_conn;
       pathplan::NodePtr obj_parent;
       pathplan::NodePtr obj_child;
       Eigen::VectorXd obj_pos;
-      if(obj_conn_pos == idx_current_conn)
+
+      replanner_mtx_.lock();
+      trj_mtx_.lock();
+      if(obj_conn_pos != size-1)
       {
-        replanner_mtx_.lock();
-        trj_mtx_.lock();
         obj_conn = replanner_->getCurrentPath()->getConnections().at(obj_conn_pos);
+        obj_parent = obj_conn->getParent();
         obj_child = obj_conn->getChild();
-        obj_pos = obj_child->getConfiguration();
+        obj_pos = obj_parent->getConfiguration() + 0.8*(obj_child->getConfiguration()-obj_parent->getConfiguration());
 
         if((obj_pos-configuration_replan_).norm()<0.20 && ((obj_conn_pos+1)<replanner_->getCurrentPath()->getConnections().size()))
         {
@@ -899,22 +880,17 @@ void ReplannerManager::spawnObjects()
           obj_parent = obj_conn->getParent();
           obj_child = obj_conn->getChild();
 
-          Eigen::VectorXd conn_vect = obj_child->getConfiguration()-obj_parent->getConfiguration();
-          obj_pos = obj_parent->getConfiguration()+0.5*conn_vect;
+          obj_pos = obj_parent->getConfiguration() + 0.8*(obj_child->getConfiguration()-obj_parent->getConfiguration());
         }
-        trj_mtx_.unlock();
-        replanner_mtx_.unlock();
       }
       else
       {
-        replanner_mtx_.lock();
         obj_conn = replanner_->getCurrentPath()->getConnections().at(obj_conn_pos);
         obj_parent = obj_conn->getParent();
-        obj_child = obj_conn->getChild();
-        obj_pos =  (obj_child->getConfiguration() +  obj_parent->getConfiguration())/2;
-        //obj_pos =  obj_parent->getConfiguration()+(obj_child->getConfiguration() -  obj_parent->getConfiguration())*0.2;
-        replanner_mtx_.unlock();
+        obj_pos = obj_parent->getConfiguration();
       }
+      trj_mtx_.unlock();
+      replanner_mtx_.unlock();
 
       moveit::core::RobotState obj_pos_state = moveit_utils.fromWaypoints2State(obj_pos);
 
@@ -950,7 +926,7 @@ void ReplannerManager::spawnObjects()
     lp.sleep();
   }
 
-  ros::Duration(5).sleep();
+  ros::Duration(1).sleep();
 
   scene_mtx_.lock();
   if (!remove_obj_.waitForExistence(ros::Duration(10)))

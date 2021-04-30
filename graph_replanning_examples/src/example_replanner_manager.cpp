@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     return 0;
   }
 
-  // //////////////////////////////////////PATH PLAN//////////////////////////////////////////////////////////////////////////
+  // //////////////////////////////////////PATH PLAN////////////////////////////////////////////////////////////////////////////////////////////////
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
   pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name, 5, 0.01);
   pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scene,group_name);
@@ -105,11 +105,13 @@ int main(int argc, char **argv)
   Eigen::VectorXd start_conf = Eigen::Map<Eigen::VectorXd>(start_configuration.data(), start_configuration.size());
   Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
+  ros::Duration(5).sleep();
+
   for (unsigned int i =0; i<n_paths; i++)
   {
     pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
     pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-    pathplan::PathPtr solution = trajectory->computePath(start_conf, goal_conf,solver,0);
+    pathplan::PathPtr solution = trajectory->computePath(start_conf, goal_conf,solver,1);
     path_vector.push_back(solution);
   }
 
@@ -119,7 +121,7 @@ int main(int argc, char **argv)
 
   // ////////////////////////////////LAUNCHING THE REPLANNER MANAGER/////////////////////////////////////////////////////////////////////////////////
   pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
-  ros::Duration(5).sleep();
+  ros::Duration(1).sleep();
   replanner_manager->start();
 
   return 0;

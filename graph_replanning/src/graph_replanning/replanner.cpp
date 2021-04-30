@@ -77,7 +77,7 @@ bool Replanner::simplifyReplannedPath(const double& distance)
   while(simplify);
 
   ros::WallTime toc = ros::WallTime::now();
-  ROS_INFO_STREAM("n simpl: "<<count<<" time: "<<(toc-tic).toSec());
+  //ROS_INFO_STREAM("n simpl: "<<count<<" time: "<<(toc-tic).toSec());
 
   return simplified;
 }
@@ -464,7 +464,7 @@ std::vector<PathPtr>  Replanner::addAdmissibleCurrentPath(const int &idx_current
       }
     }
     // adding the savable subpath of the current_path to the set of available paths
-    reset_other_paths.push_back(admissible_current_path);
+    if(admissible_current_path != NULL) reset_other_paths.push_back(admissible_current_path);
     reset_other_paths.insert(reset_other_paths.end(),other_paths_.begin(),other_paths_.end());
     return reset_other_paths;
   }
@@ -1076,21 +1076,9 @@ bool Replanner::informedOnlineReplanning(const double &max_time)
   reset_other_paths = addAdmissibleCurrentPath(current_conn_idx, admissible_current_path);
   admissible_other_paths_ = reset_other_paths;
 
-  ROS_INFO("------------------------------------");
-  for(unsigned int g=0; g<reset_other_paths.size();g++)
-  {
-    ROS_INFO_STREAM("path"<<g);
-    if(reset_other_paths.at(g)->getConnections().empty()) ROS_ERROR("CONN VUOTA");
-  }
-
-  ROS_INFO_STREAM("n paths: "<<admissible_other_paths_.size());
-
   for(const PathPtr& path: admissible_other_paths_)
   {
-    std::vector<ConnectionPtr> conn = path->getConnections();
-    if(conn.empty()) ROS_WARN("CONNECTIONS VUOTO!");
-    double c = path->getConnections().back()->getCost();
-    if(c != std::numeric_limits<double>::infinity()) no_available_paths = 0;  //if there is a path with the last connection free it means that there is almost an available path to connect to
+    if(path->getConnections().back()->getCost() != std::numeric_limits<double>::infinity()) no_available_paths = false;  //if there is a path with the last connection free it means that there is almost an available path to connect to
   }
 
   NodePtr parent = current_conn->getParent();

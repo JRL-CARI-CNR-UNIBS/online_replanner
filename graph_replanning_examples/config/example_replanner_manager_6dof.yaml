@@ -1,0 +1,14 @@
+group_name: "manipulator"
+base_link: "world"
+last_link: "flange"
+trj_execution_thread_frequency: 500
+collision_checker_thread_frequency: 30
+
+read_safe_scaling: false
+spawn_objs: true
+number_paths: 4
+dt_replan_restricted: 0.070 #seconds
+dt_replan_relaxed: 0.120 #seconds
+scaling: 1.0
+start_configuration: [1.5, 0.5, -0.5, -1.5, -0.7, 0.7]
+stop_configuration: [0.0, 0.0, -1.0, 0.0, -1.5, 1.0]

@@ -285,7 +285,7 @@ int main(int argc, char **argv)
     ROS_WARN("NOT SUCCESS");
   }
 
-  ros::Duration(60).sleep();
+  ros::Duration(10).sleep();
 
   // ////////////////////////////////////////// REMOVING MOBILE OBSTACLE //////////////////////////////////////////////////
   if (!remove_obj.waitForExistence(ros::Duration(10)))

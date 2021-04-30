@@ -1,9 +1,9 @@
 # **graph_replanning_examples**
-The package **graph_replanning_examples** provides two usage examples, one for the replanner and one for the replanner_manager. It also provides the necessary files to use as a basis for running the examples with your robotic cell.
+The package **graph_replanning_examples** provides some usage examples, for the replanner and one for the replanner_manager. It also provides the necessary files to use as a basis for running the examples with your robotic cell.
 
 ## **Replanner**
 ### **Example**
-[example_replanner_cartesian.cpp](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner.cpp) is a ready-to-use example of the replanner functioning. In this example, the robot is a simple pink sphere moving in the three-dimensional Cartesian space, in which there is a large grey obstacle. Initially, a user-defined number of paths is computed considering the static grey obstacle and they are displayed on Rviz; then, a new obstacle (a red box) is placed on the current path (the dark green one). Finally, the replanner is called to find a new path, which will be displayed in yellow.
+[example_replanner_cartesian.cpp](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/devel/graph_replanning_examples/src/example_replanner.cpp) is a ready-to-use example of the replanner functioning. The aim of this example is to show how the replanning algorithm works, calling it from a specific robot configuration. In this example, the robot is a simple pink sphere moving in the three-dimensional Cartesian space, in which there is a large grey obstacle. Initially, a user-defined number of paths is computed considering the static grey obstacle and they are displayed on Rviz; then, a new obstacle (a red box) is placed on the current path (the dark green one). Finally, the replanner is called to find a new path, which will be displayed in yellow.
 To run the example, type in the terminal:
 
 `roslaunch graph_replanning_examples example_replanner_cartesian.launch`
@@ -26,6 +26,9 @@ stop_configuration: [0.8, 0.8, 0.8]
 - If `display_step_by_step` is true, you can see the replanner algorithm execution step by step, its evolution and the intermediate solutions. You can advance in each step by pressing the button <kbd>Next</kbd> on Rviz (see Figure). Note that if this parameter is true, no time constraints are given to the replanner.
 - `number_paths` defines the number of paths which will computed before launching the replanner and which the replanner will exploit to find a new free path. Recommended value 3-6 paths. NOTE: these paths should explore different parts of the workspace in order to make the replanning more effective.
 - `max_time_for_replanning` defines the maximum time that the replanner can use to replan and optimize the solution. The higher the value, the better the solutions found. Complex cells require a bigger amount of time.
+
+You can launch the example with a 6 degree-of-freedom robot, typing:
+`roslaunch graph_replanning_examples example_replanner_6dof.launch`
 
 ### **Usage**
 In order to use the replanner with your robotic cell, you need to do the following preliminary steps:
