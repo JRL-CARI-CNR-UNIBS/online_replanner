@@ -97,6 +97,11 @@ public:
             const Eigen::VectorXd& lb,
             const Eigen::VectorXd& ub);
 
+  void setReplannedPath(const PathPtr& replanned_path)
+  {
+    replanned_path_ = replanned_path;
+  }
+
   PathPtr getReplannedPath()
   {
     return replanned_path_;

@@ -1,0 +1,3 @@
+- git:
+    local-name: motion_control/online_replanner
+    uri: https://github.com/JRL-CARI-CNR-UNIBS/online_replanner

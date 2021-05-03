@@ -165,8 +165,10 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     pathplan::NodePtr node;
 
     int idx_conn;
+    ROS_INFO("QUA2");
     if(path->findConnection(configuration,idx_conn) != NULL)
     {
+      ROS_INFO("QUA3");
       node = path->getConnections().at(idx_conn)->getChild();
 
       if((path->getConnections().size()-1) > idx_conn)
@@ -189,6 +191,7 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     }
     else
     {
+      ROS_INFO("QUA4");
       ConnectionPtr conn = current_path_->getConnections().at(idx_path_start);
 
       int idx = idx_path_start;
@@ -244,6 +247,7 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
         }
         else
         {
+          ROS_INFO_STREAM("idx: "<<t);
           child = std::make_shared<pathplan::Node>(current_path_->getConnections().at(t)->getChild()->getConfiguration());
         }
         parent = std::make_shared<pathplan::Node>(current_path_->getConnections().at(t)->getParent()->getConfiguration());

@@ -2,8 +2,8 @@ test_name: "sharework"
 group_name: "manipulator"
 base_link: "base_link"
 last_link: "open_tip"
-dt_replan_restricted: 0.070
-dt_replan_relaxed: 0.120
+dt_replan_restricted: 0.100
+dt_replan_relaxed: 0.150
 checker_resolution: 0.05
 trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30

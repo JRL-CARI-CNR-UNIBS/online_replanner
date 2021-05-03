@@ -279,8 +279,8 @@ int main(int argc, char **argv)
     for(const pathplan::PathPtr& path:other_paths) ROS_INFO_STREAM("cost path: "<<path->cost());
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
-    ROS_WARN("VAIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
-    ros::Duration(7).sleep();
+    ROS_INFO("KILL JOINT STATE PUBLISHER");
+    ros::Duration(10).sleep();
     replanner_manager->start();
   }
 
