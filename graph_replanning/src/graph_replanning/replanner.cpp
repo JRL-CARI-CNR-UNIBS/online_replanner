@@ -516,16 +516,6 @@ std::vector<NodePtr> Replanner::nodes2connect2(const PathPtr& path, const NodePt
     {
       path_node_vector.push_back(p.second);
     }
-
-    /*path_node_vector.push_back(path_support->findCloserNode(this_node->getConfiguration())); //Firstly, add the closest node
-
-    for(unsigned int t = 0; t < path_conn.size(); t++) //Then, add the other nodes, except for the goal
-    {
-      if(((path_conn.at(t)->getParent()->getConfiguration()-path_node_vector.back()->getConfiguration()).norm() > 1e-03) && (path_conn.at(t)->getParent()->getConfiguration() != path_node_vector.front()->getConfiguration())) //when some nodes are too close to each other, only one of them is considered
-      {
-        path_node_vector.push_back(path_conn.at(t)->getParent());
-      }
-    }*/
   }
   else
   {
