@@ -5,8 +5,40 @@ The repository contains the implementation of an anytime informed path replanner
 You can read technical specifications about this replanner [here](https://arxiv.org/abs/2103.13245).
 
 ## Build/Installation
-The software can be installed with the following [rosinstall file](online_replanner.rosinstall).
+The software can be installed using rosinstall files.
 
+1. Install ros: follow the steps described in http://wiki.ros.org/ROS/Installation
+2. Install wstool and initialize the workspace: follow the steps described in http://wiki.ros.org/wstool
+3. Install and configure rosdep: follow the steps described in http://wiki.ros.org/rosdep
+
+Then, download and merge the rosinstall file:
+```
+cd ~/catkin_ws
+wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/online_replanner/master/online_replanner.rosinstall
+
+cd ~/catkin_ws
+ wstool merge -t src ./online_replanner.rosinstall
+```
+Now, do the same with the dependencies required:
+```
+cd ~/catkin_ws
+wget https://bitbucket.org/iras-ind/human_aware_motion_planners/raw/b1d545049aa78ab35e3918e4d30fbc395416ad40/human_aware.rosinstall
+
+cd ~/catkin_ws
+wstool merge -t src ./human_aware.rosinstall
+
+cd ~/catkin_ws
+wget https://raw.githubusercontent.com/CNR-STIIMA-IRAS/rosdyn/master/rosdyn.rosinstall
+
+cd ~/catkin_ws
+wstool merge -t src ./rosdyn.rosinstall
+```
+Download and install the packages specified in the rosinstall file and the other system dipendencies:
+```
+cd ~/catkin_ws
+wstool update -t src
+rosdep install --from-paths src --ignore-src -r -y
+```
 ## Packages
 ### **graph_replanning [see README](https://github.com/JRL-CARI-CNR-UNIBS/online_replanner/blob/master/graph_replanning/README.md)**
 It contains two main classes:

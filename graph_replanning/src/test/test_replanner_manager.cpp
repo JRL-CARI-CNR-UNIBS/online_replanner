@@ -280,7 +280,7 @@ int main(int argc, char **argv)
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
     ROS_INFO("KILL JOINT STATE PUBLISHER");
-    ros::Duration(10).sleep();
+    ros::Duration(1).sleep();
     replanner_manager->start();
   }
 

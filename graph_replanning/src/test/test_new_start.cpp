@@ -148,8 +148,8 @@ int main(int argc, char **argv)
 
   //
   disp->nextButton("Starting replanned path from conf1 -> press NEXT");
-  parent_node = current_path->getConnections().at(idx_replanned_path_start)->getParent();
-  child_node = current_path->getConnections().at(idx_replanned_path_start)->getChild();
+  parent_node = replanned_path_conn->getParent();
+  child_node = replanned_path_conn->getChild();;
 
   new_current_configuration = parent_node->getConfiguration()+0.3*(child_node->getConfiguration()-parent_node->getConfiguration());
 
@@ -174,8 +174,8 @@ int main(int argc, char **argv)
   replanner.setReplannedPath(replanned_path->clone());
   //
   disp->nextButton("Starting replanned path from conf3 -> press NEXT");
-  parent_node = replanned_path_conn->getParent();
-  child_node = replanned_path_conn->getChild();
+  parent_node = replanned_path->getConnections().at(0)->getParent();
+  child_node = replanned_path->getConnections().at(0)->getChild();
 
   new_current_configuration = parent_node->getConfiguration()+0.3*(child_node->getConfiguration()-parent_node->getConfiguration());
 
