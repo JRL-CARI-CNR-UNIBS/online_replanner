@@ -17,7 +17,7 @@ cd ~/catkin_ws
 wget https://raw.githubusercontent.com/JRL-CARI-CNR-UNIBS/online_replanner/master/online_replanner.rosinstall
 
 cd ~/catkin_ws
- wstool merge -t src ./online_replanner.rosinstall
+wstool merge -t src ./online_replanner.rosinstall
 ```
 Now, do the same with the dependencies required:
 ```
