@@ -501,8 +501,8 @@ std::vector<NodePtr> Replanner::nodes2connect2(const PathPtr& path, const NodePt
   std::vector<NodePtr> path_node_vector;
 
   std::vector<ConnectionPtr> path_conn = path->getConnections();
-  if(path_conn.size()>1)
-  {
+  /*if(path_conn.size()>1)
+  {*/
     std::multimap<double,NodePtr> node_map;
 
     double distance;
@@ -512,15 +512,18 @@ std::vector<NodePtr> Replanner::nodes2connect2(const PathPtr& path, const NodePt
       node_map.insert(std::pair<double,NodePtr>(distance,path_conn.at(i)->getParent()));
     }
 
+    distance = (this_node->getConfiguration()-path_conn.back()->getChild()->getConfiguration()).norm();
+    node_map.insert(std::pair<double,NodePtr>(distance,path_conn.back()->getChild()));
+
     for(const std::pair<double,NodePtr>& p: node_map)
     {
       path_node_vector.push_back(p.second);
     }
-  }
+  /*}
   else
   {
     path_node_vector.push_back(path_conn.at(0)->getParent());
-  }
+  }*/
 
   return path_node_vector;
 }
@@ -648,6 +651,15 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
   //path_solver.setPath(connecting_path);
   //double opt_time = maxSolverTime(tic,tic_cycle);
 
+  ros::WallTime tic_simplify = ros::WallTime::now();
+  if(path->getConnections().at(0)<0.1)
+  {
+    //simplify solo della prima connessione
+  }
+
+  ros::WallTime toc_simplify = ros::WallTime::now();
+
+
   if(max_time<=0.0) return;
   ros::WallTime tic_opt = ros::WallTime::now();
   path->warp(0.1,max_time);
@@ -716,9 +728,15 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
       {
         tic_cycle = ros::WallTime::now();
 
-        PathPtr path2_node2goal = path2->getSubpathFromNode(path2_node);
-        std::vector<ConnectionPtr> subpath2_conn = path2_node2goal->getConnections();
-        double subpath2_cost = path2_node2goal->cost();
+        PathPtr path2_node2goal = NULL;
+        std::vector<ConnectionPtr> subpath2_conn;
+        double subpath2_cost = 0.0;
+        if(path2_node->getConfiguration() != current_path->getConnections().back()->getChild()->getConfiguration())
+        {
+          path2_node2goal = path2->getSubpathFromNode(path2_node);
+          subpath2_conn = path2_node2goal->getConnections();
+          subpath2_cost = path2_node2goal->cost();
+        }
 
         double diff_subpath_cost = candidate_solution_cost - subpath2_cost; //it is the maximum cost to make the connecting_path convenient
         double distance_path_node = (path1_node->getConfiguration()-path2_node->getConfiguration()).norm(); //the Euclidean distance is the minimum cost that the connecting_path can have
@@ -1360,6 +1378,11 @@ bool Replanner::informedOnlineReplanning(const double &max_time)
     {
       if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<min_time_pathSwitch);
       //if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<time_percentage_variability_*informedOnlineReplanning_cycle_time_mean_);
+      if(informedOnlineReplanning_disp_)
+      {
+        ROS_INFO("Optimizing...");
+        disp_->nextButton();
+      }
 
       double cost_pre_opt = replanned_path->cost();
       ros::WallTime tic_warp = ros::WallTime::now();

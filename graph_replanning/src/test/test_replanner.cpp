@@ -534,6 +534,8 @@ int main(int argc, char **argv)
       }
     }
 
+    checker_parallel->setPlanningSceneMsg(ps_srv.response.scene);
+
     replanner.setCurrentPath(current_path);
     success =  replanner.informedOnlineReplanning(time_repl);
 
