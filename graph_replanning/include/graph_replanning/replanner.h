@@ -16,6 +16,8 @@
 #include <moveit_visual_tools/moveit_visual_tools.h>
 #include <rviz_visual_tools/rviz_visual_tools.h>
 #include <moveit/robot_model/robot_model.h>
+#include <thread>
+#include <mutex>
 
 namespace pathplan
 {
@@ -28,6 +30,8 @@ protected:
   Eigen::VectorXd current_configuration_;
   PathPtr current_path_;
   PathPtr replanned_path_;
+  PathPtr ps_solution_;
+  PathPtr subpath_from_path2_;
   std::vector<PathPtr> replanned_paths_vector_;
   std::vector<PathPtr> other_paths_;
   std::vector<PathPtr> admissible_other_paths_;
@@ -37,6 +41,9 @@ protected:
   CollisionCheckerPtr checker_;
   Eigen::VectorXd lb_;
   Eigen::VectorXd ub_;
+  DisplayPtr disp_;
+  ros::WallTime tic_;
+
   double time_first_sol_;
   double time_replanning_;
   double available_time_;
@@ -44,18 +51,25 @@ protected:
   double pathSwitch_cycle_time_mean_;
   //double informedOnlineReplanning_cycle_time_mean_;
   double time_percentage_variability_;
+  double ps_candidate_solution_cost_;
+  double connected2path_number_;
+  std::vector<double> ps_time_vector_;
+
   bool success_;
   bool an_obstacle_;
   bool emergency_stop_;
-
   bool informedOnlineReplanning_disp_;
   bool pathSwitch_disp_;
-  DisplayPtr disp_;
+
   int pathSwitch_path_id_;
+  std::vector<int> node_id_vector_;
 
   bool informedOnlineReplanning_verbose_;
   bool pathSwitch_verbose_;
+  bool ps_success_;
 
+  std::mutex mutex_;
+  std::mutex disp_mutex_;
 
   //It finds the portion of current_path_ between the obstacle and the goal and add it as first element of a vector containing the other available paths. It is used in InformedOnlineReplanning
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
@@ -79,10 +93,12 @@ protected:
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2, const NodePtr& path1_node, const NodePtr& path2_node);
 
   //It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
-  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
 
   //Optimize connecting path. used in PathSwitch and Connect2Goal.
   void optimizePath(PathPtr &connecting_path, const double &max_time);
+
+  void pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2_node, const PathPtr &path2, const PathPtr &current_path);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
