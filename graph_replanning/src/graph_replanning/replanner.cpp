@@ -652,7 +652,7 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
   //double opt_time = maxSolverTime(tic,tic_cycle);
 
   ros::WallTime tic_simplify = ros::WallTime::now();
-  if(path->getConnections().at(0)<0.1)
+  if(path->getConnections().at(0)->norm()<0.1)
   {
     //simplify solo della prima connessione
   }
