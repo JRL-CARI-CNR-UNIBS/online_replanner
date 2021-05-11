@@ -69,7 +69,7 @@ protected:
   bool ps_success_;
 
   std::mutex mutex_;
-  std::mutex disp_mutex_;
+  std::mutex disp_verb_mutex_;
 
   //It finds the portion of current_path_ between the obstacle and the goal and add it as first element of a vector containing the other available paths. It is used in InformedOnlineReplanning
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
@@ -271,7 +271,7 @@ public:
   bool connect2goal(const PathPtr &current_path, const NodePtr& node, PathPtr &new_path);
 
   //Starting from node of current_path_ it tries to find a connection to all the available paths of admissible_other_paths_
-  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, PathPtr &new_path, PathPtr &subpath_from_path2, int &connected2path_number);
+  bool pathSwitch(const PathPtr& current_path, const NodePtr& node, PathPtr &new_path);
 
   //It menages the replanning calling more times pathSwitch from different nodes and giving the correct set of available paths
   bool informedOnlineReplanning(const double &max_time  = std::numeric_limits<double>::infinity());
