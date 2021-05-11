@@ -42,7 +42,7 @@ protected:
   Eigen::VectorXd lb_;
   Eigen::VectorXd ub_;
   DisplayPtr disp_;
-  ros::WallTime tic_;
+  ros::WallTime ps_tic_;
 
   double time_first_sol_;
   double time_replanning_;
@@ -68,8 +68,10 @@ protected:
   bool pathSwitch_verbose_;
   bool ps_success_;
 
+  std::vector<std::thread> threads_;
+
   std::mutex mutex_;
-  std::mutex disp_verb_mutex_;
+  std::mutex disp_mutex_;
 
   //It finds the portion of current_path_ between the obstacle and the goal and add it as first element of a vector containing the other available paths. It is used in InformedOnlineReplanning
   std::vector<PathPtr> addAdmissibleCurrentPath(const int &idx_current_conn, PathPtr& admissible_current_path);
@@ -93,12 +95,16 @@ protected:
   PathPtr concatConnectingPathAndSubpath2(const std::vector<ConnectionPtr>& connecting_path_conn, const std::vector<ConnectionPtr>& subpath2, const NodePtr& path1_node, const NodePtr& path2_node);
 
   //It compute the connecting path from path1_node to path2_node. It is used in PathSwitch and Connect2Goal.
-  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, const double &diff_subpath_cost, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, TreeSolverPtr &solver, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected, std::string &verbose_string);
+  bool computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, TreeSolverPtr &solver, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected);
 
   //Optimize connecting path. used in PathSwitch and Connect2Goal.
-  void optimizePath(PathPtr &connecting_path, const double &max_time);
+  void optimizePath(PathPtr &path, const double &max_time, std::string& verbose_string);
+  void optimizePath(PathPtr &path, const double &max_time);
 
   void pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2_node, const PathPtr &path2, const PathPtr &current_path);
+
+  void prova(const int& i);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
