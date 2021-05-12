@@ -38,7 +38,6 @@ Replanner::Replanner(Eigen::VectorXd& current_configuration,
 
   informedOnlineReplanning_verbose_ = false;
   pathSwitch_verbose_ = false;
-
 }
 
 bool Replanner::checkPathValidity(const CollisionCheckerPtr &this_checker)
@@ -590,12 +589,12 @@ PathPtr Replanner::concatConnectingPathAndSubpath2(const std::vector<ConnectionP
   return std::make_shared<Path>(new_connecting_path_conn, metrics_, checker_);
 }
 
+
 bool Replanner::computeConnectingPath(const NodePtr &path1_node_fake, const NodePtr &path2_node_fake, TreeSolverPtr &solver, const ros::WallTime &tic_cycle, PathPtr &connecting_path, bool &directly_connected)
 {
   std::string verbose_string;
   return computeConnectingPath(path1_node_fake, path2_node_fake, solver, tic_cycle, connecting_path, directly_connected, verbose_string);
 }
-
 
 bool Replanner::computeConnectingPath(const NodePtr& path1_node_fake, const NodePtr& path2_node_fake, TreeSolverPtr& solver, const ros::WallTime& tic_cycle, PathPtr& connecting_path, bool& directly_connected, std::string& verbose_string)
 {
@@ -691,10 +690,11 @@ bool Replanner::computeConnectingPath(const NodePtr& path1_node_fake, const Node
   return solver_has_solved;
 }
 
+
 void Replanner::optimizePath(PathPtr &path, const double &max_time)
 {
   std::string verbose_string;
-  return optimizePath(path, max_time,verbose_string);
+  return optimizePath(path,max_time,verbose_string);
 }
 
 
@@ -777,7 +777,7 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
         node_n = r;
       }
     }
-    ROS_INFO_STREAM("candidate_solution_cost: "<<ps_candidate_solution_cost_<<" subpath2_cost: "<<subpath2_cost);
+    ROS_INFO_STREAM("candidate_solution_cost: "<<ps_candidate_solution_cost_<<" subpath2_cost: "<<subpath2_cost); //NB: essendoci pathSwitch_disp_ i thread lavorano uno alla volta
     ROS_INFO_STREAM("node n: " <<node_n<< " diff_subpath_cost: "<< diff_subpath_cost<<" distance: " << distance_path_node);
   }
 
@@ -804,7 +804,7 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
       if(!directly_connected)
       {
         //double opt_time = maxSolverTime(tic,tic_cycle);
-        //optimizePath(connecting_path,opt_time);  //SE LO SPOSTI DA QUA ASSICURATI CHE IL APTH ABBIA UNA COPIA DI CHECKER_ SE NO SI CREA CONFLITTO FRA I THREAD (ORA USA UNA COPIA DI CHECKER, GLI VIENE ASSEGNATA IN computeConnectingPath)
+        //optimizePath(connecting_path,opt_time);  //SE LO SPOSTI DA QUA ASSICURATI CHE IL PATH ABBIA UNA COPIA DI CHECKER_ SE NO SI CREA CONFLITTO FRA I THREAD (ORA USA UNA COPIA DI CHECKER, GLI VIENE ASSEGNATA IN computeConnectingPath)
       }
 
       double new_solution_cost = subpath2_cost + connecting_path->cost();
@@ -886,14 +886,12 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
         ps_time_vector_.push_back(term2increase_mean);
         if(pathSwitch_verbose_)
         {
-          mutex_.lock();
           verbose_string.append("\nNot solved->added a term to increase of ");
           verbose_string.append(std::to_string(percentage_increase*100));
           verbose_string.append("% pathSwitch mean (=");
           verbose_string.append(std::to_string(pathSwitch_cycle_time_mean_));
           verbose_string.append("): ");
           verbose_string.append(std::to_string(term2increase_mean));
-          mutex_.unlock();
         }
       }
       mutex_.unlock();
@@ -1017,17 +1015,20 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
       //        threads.push_back(thread);
       //      }
 
-      threads_.resize(path2_node_vector.size());
-      for(unsigned int idx=0; idx<path2_node_vector.size();idx++)
-      {
-        int i = 1;
-        threads_.at(idx) = std::thread(&Replanner::prova,this,i);
-      }
+      //threads_.clear();
+      //threads_.resize(path2_node_vector.size());
+      //for(unsigned int idx=0; idx<path2_node_vector.size();idx++)
+      //{
+      //  threads_.at(idx) = std::thread(&Replanner::pathSwitchThread,this,path1_node,path2_node_vector.at(idx),path2,current_path);
+      //}
+      //
+      //for(std::thread& t: threads_)
+      //{
+      //  if(t.joinable()) t.join();  //attende che i thread abbiano finito?
+      //}
 
-      for(std::thread& t: threads_)
-      {
-        if(t.joinable()) t.join();  //attende che i thread abbiano finito?
-      }
+      thread_ = std::thread(&Replanner::pathSwitchThread,this,path1_node,path2_node_vector.at(0),path2,current_path);
+      thread_.join();
 
       if(pathSwitch_verbose_) ROS_INFO("--------");
 
