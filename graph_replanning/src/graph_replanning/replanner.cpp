@@ -1015,20 +1015,17 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
       //        threads.push_back(thread);
       //      }
 
-      //threads_.clear();
-      //threads_.resize(path2_node_vector.size());
-      //for(unsigned int idx=0; idx<path2_node_vector.size();idx++)
-      //{
-      //  threads_.at(idx) = std::thread(&Replanner::pathSwitchThread,this,path1_node,path2_node_vector.at(idx),path2,current_path);
-      //}
-      //
-      //for(std::thread& t: threads_)
-      //{
-      //  if(t.joinable()) t.join();  //attende che i thread abbiano finito?
-      //}
+      threads_.clear();
+      threads_.resize(path2_node_vector.size());
+      for(unsigned int idx=0; idx<path2_node_vector.size();idx++)
+      {
+        threads_.at(idx) = std::thread(&Replanner::pathSwitchThread,this,path1_node,path2_node_vector.at(idx),path2,current_path);
+      }
 
-      thread_ = std::thread(&Replanner::pathSwitchThread,this,path1_node,path2_node_vector.at(0),path2,current_path);
-      thread_.join();
+      for(std::thread& t: threads_)
+      {
+        if(t.joinable()) t.join();  //attende che i thread abbiano finito?
+      }
 
       if(pathSwitch_verbose_) ROS_INFO("--------");
 
