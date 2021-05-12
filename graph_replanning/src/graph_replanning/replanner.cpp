@@ -952,11 +952,6 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
   if(pathSwitch_disp_) disp_mutex_.unlock();
 }
 
-void Replanner::prova(const int &i)
-{
-  ROS_INFO_STREAM("PROVA"<<i);
-}
-
 bool Replanner::pathSwitch(const PathPtr &current_path,
                            const NodePtr &node,
                            PathPtr &new_path)
@@ -1005,15 +1000,6 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
       if(pathSwitch_verbose_) ROS_INFO_STREAM("----Path2 selected----");
 
       std::vector<NodePtr> path2_node_vector = nodes2connect2(path2,path1_node);
-      //std::vector<std::thread> threads;
-      //std::thread thread;
-
-
-      //      for(const NodePtr& path2_node : path2_node_vector)
-      //      {
-      //        //thread = std::thread(&Replanner::pathSwitchThread,this,path1_node,path2_node,path2,current_path);
-      //        threads.push_back(thread);
-      //      }
 
       threads_.clear();
       threads_.resize(path2_node_vector.size());
@@ -1024,7 +1010,7 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
 
       for(std::thread& t: threads_)
       {
-        if(t.joinable()) t.join();  //attende che i thread abbiano finito?
+        if(t.joinable()) t.join();
       }
 
       if(pathSwitch_verbose_) ROS_INFO("--------");

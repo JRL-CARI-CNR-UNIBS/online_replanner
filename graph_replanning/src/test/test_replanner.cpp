@@ -417,7 +417,7 @@ int main(int argc, char **argv)
     //other_paths.at(0)->getConnections().back()->setCost(std::numeric_limits<double>::infinity());
     //other_paths.at(1)->getConnections().back()->setCost(std::numeric_limits<double>::infinity());
 
-    pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker_parallel, lb, ub);
+    pathplan::Replanner replanner(current_configuration, current_path, other_paths, solver, metrics, checker_parallel, lb, ub);
 
     if(verbose_time)
     {

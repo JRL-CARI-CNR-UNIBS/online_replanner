@@ -117,7 +117,7 @@ int main(int argc, char **argv)
   pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, samp);
   solver->config(nh);
 
-  pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
+  pathplan::Replanner replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
 
   double time_repl = 1.0;
   bool success =  replanner.informedOnlineReplanning(time_repl);

@@ -69,7 +69,6 @@ protected:
   bool ps_success_;
 
   std::vector<std::thread> threads_;
-
   std::mutex mutex_;
   std::mutex disp_mutex_;
 
@@ -200,7 +199,6 @@ public:
   {
     emergency_stop_ = false;
   }
-
 
   void setCurrentPath(const PathPtr& path)
   {

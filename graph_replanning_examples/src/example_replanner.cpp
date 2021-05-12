@@ -253,7 +253,7 @@ int main(int argc, char **argv)
   // //////////////////////////////////////// REPLANNING ////////////////////////////////////////////////////////////////
   bool success;
 
-  pathplan::Replanner replanner = pathplan::Replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
+  pathplan::Replanner replanner(current_configuration, current_path, other_paths, solver, metrics, checker, lb, ub);
 
   if(display_step_by_step)
   {
