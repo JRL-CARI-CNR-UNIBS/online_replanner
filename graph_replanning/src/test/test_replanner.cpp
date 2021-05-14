@@ -358,6 +358,8 @@ int main(int argc, char **argv)
         return 1;
       }
 
+      checker->setPlanningSceneMsg(ps_srv.response.scene);
+      checker_parallel->setPlanningSceneMsg(ps_srv.response.scene);
     }
     else
     {
@@ -393,13 +395,13 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("checker: "<<valid_checker<<" checker parallel: "<<valid_checker_parallel<<" check1: "<<valid_checker_parallel1);
 
     bool valid;
-    valid =current_path->isValid();
+    valid =current_path->isValid(checker_parallel);
     ROS_INFO_STREAM("current path valid: "<<valid);
 
-    valid = other_paths.at(0)->isValid();
+    valid = other_paths.at(0)->isValid(checker_parallel);
     ROS_INFO_STREAM("path2 valid: "<<valid);
 
-    valid = other_paths.at(1)->isValid();
+    valid = other_paths.at(1)->isValid(checker_parallel);
     ROS_INFO_STREAM("path3 valid: "<<valid);
 
     pathplan::SamplerPtr samp = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
@@ -527,14 +529,9 @@ int main(int argc, char **argv)
         return 1;
       }
 
-      if (!planning_scene->setPlanningSceneMsg(ps_srv.response.scene))
-      {
-        ROS_ERROR("unable to update planning scene");
-        return 1;
-      }
+      checker->setPlanningSceneMsg(ps_srv.response.scene);
+      checker_parallel->setPlanningSceneMsg(ps_srv.response.scene);
     }
-
-    checker_parallel->setPlanningSceneMsg(ps_srv.response.scene);
 
     replanner.setCurrentPath(current_path);
     success =  replanner.informedOnlineReplanning(time_repl);

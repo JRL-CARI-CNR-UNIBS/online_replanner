@@ -661,7 +661,7 @@ bool Replanner::computeConnectingPath(const NodePtr& path1_node_fake, const Node
     }
 
     tic_solver = ros::WallTime::now();
-    solver_has_solved = solver->solve(connecting_path,10000,solver_time);
+    solver_has_solved = solver->solve(connecting_path,1000,solver_time);
     toc_solver = ros::WallTime::now();
 
     if(pathSwitch_verbose_)
@@ -738,11 +738,12 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
   std::string verbose_string;
   if(pathSwitch_verbose_)
   {
-    verbose_string.append("Node2 number: "); //Se lo elimini, assicurati che verbose_string venga inizializzata (not empty) prima di arrivare a computeConnectingPath
+    verbose_string.append("\n---------------NODE2 NUMBER: "); //Se lo elimini, assicurati che verbose_string venga inizializzata (not empty) prima di arrivare a computeConnectingPath
     for(unsigned int i=0; i<path2->getWaypoints().size(); i++)
     {
       if(path2_node->getConfiguration() == path2->getWaypoints().at(i)) verbose_string.append(std::to_string(i));
     }
+    verbose_string.append("---------------");
   }
 
   int new_node_id;
@@ -766,6 +767,18 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
   double diff_subpath_cost = ps_candidate_solution_cost_ - subpath2_cost; //it is the maximum cost to make the connecting_path convenient
   mutex_.unlock();
   double distance_path_node = (path1_node->getConfiguration()-path2_node->getConfiguration()).norm(); //the Euclidean distance is the minimum cost that the connecting_path can have
+
+  if(pathSwitch_verbose_)
+  {
+    mutex_.lock();
+    verbose_string.append("\nCandidate solution cost: ");
+    verbose_string.append(std::to_string(ps_candidate_solution_cost_));
+    verbose_string.append(" diff subpath cost: ");
+    verbose_string.append(std::to_string(diff_subpath_cost));
+    verbose_string.append(" nodes distance: ");
+    verbose_string.append(std::to_string(distance_path_node));
+    mutex_.unlock();
+  }
 
   if(pathSwitch_disp_)
   {
@@ -793,6 +806,7 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
     MetricsPtr metrics = metrics_->clone();
     CollisionCheckerPtr checker = checker_->clone();
     solver = solver_->clone(metrics, checker, sampler);
+    solver->config(solver_->getNodeHandle());
     mutex_.unlock();
 
     PathPtr connecting_path;
@@ -871,6 +885,7 @@ void Replanner::pathSwitchThread(const NodePtr &path1_node, const NodePtr &path2
         mutex_.lock();
         ps_time_vector_.push_back((toc_cycle-tic_cycle).toSec());
         mutex_.unlock();
+        if(pathSwitch_verbose_) verbose_string.append("\nAdding new term to ps time vector..");
       }
 
       if(pathSwitch_disp_) disp_->nextButton("Press \"next\" to execute the next PathSwitch step");
@@ -961,16 +976,16 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
   if(pathSwitch_disp_) pathSwitch_max_time_ = std::numeric_limits<double>::infinity();
   else pathSwitch_max_time_ = available_time_;
   double time = pathSwitch_max_time_;
-  std::vector<double> time_vector;
   bool time_out = false;
 
   new_path = NULL;
   ps_solution_ = NULL;
   ps_success_ = false;
+  ps_time_vector_.clear();
   node_id_vector_.clear();
 
   if(pathSwitch_verbose_) ROS_INFO_STREAM("PathSwitch cycle starting mean: "<<pathSwitch_cycle_time_mean_);
-  if(pathSwitch_cycle_time_mean_ != std::numeric_limits<double>::infinity()) time_vector.push_back(pathSwitch_cycle_time_mean_);
+  if(pathSwitch_cycle_time_mean_ != std::numeric_limits<double>::infinity()) ps_time_vector_.push_back(pathSwitch_cycle_time_mean_);
 
   if(!pathSwitch_disp_)
   {
@@ -997,7 +1012,7 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
   {
     if(!emergency_stop_)
     {
-      if(pathSwitch_verbose_) ROS_INFO_STREAM("----Path2 selected----");
+      if(pathSwitch_verbose_) ROS_INFO_STREAM("\n****************PATH2 SELECTED****************");
 
       std::vector<NodePtr> path2_node_vector = nodes2connect2(path2,path1_node);
 
@@ -1013,11 +1028,11 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
         if(t.joinable()) t.join();
       }
 
-      if(pathSwitch_verbose_) ROS_INFO("--------");
+      if(pathSwitch_verbose_) ROS_INFO("\n**********************************************");
 
-      if(!time_vector.empty())
+      if(!ps_time_vector_.empty())
       {
-        pathSwitch_cycle_time_mean_ = std::accumulate(time_vector.begin(), time_vector.end(),0.0)/((double) time_vector.size());
+        pathSwitch_cycle_time_mean_ = std::accumulate(ps_time_vector_.begin(), ps_time_vector_.end(),0.0)/((double) ps_time_vector_.size());
         if(pathSwitch_verbose_) ROS_INFO_STREAM("Cycle time mean updated: "<<pathSwitch_cycle_time_mean_);
       }
 
