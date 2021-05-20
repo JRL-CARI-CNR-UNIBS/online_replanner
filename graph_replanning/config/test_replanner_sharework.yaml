@@ -6,7 +6,7 @@ moving_obs: true
 disp_verb_informed: false
 disp_verb_pathSwitch: false
 time_verb: true
-time_for_repl: 0.15
+time_for_repl: 0.100
 opt_path: true
 starting_obs_pos: [0.6,0.3,1.5] #[0.6,0.0,1.5]
 start_configuration: [2.5, -1.4232, 1.4232, 0.0, 1.8398, 0.0]
