@@ -487,6 +487,22 @@ void ReplannerManager::collisionCheckThread()
   }
 }
 
+bool ReplannerManager::stop()
+{
+  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
+  if(replanning_thread_.joinable()) replanning_thread_.join();
+  if(col_check_thread_.joinable()) col_check_thread_.join();
+  if(display_thread_.joinable()) display_thread_.join();
+  if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_.join();
+  return true;
+}
+bool ReplannerManager::cancel()
+{
+  stop_ = true;
+  return stop();
+}
+
+
 bool ReplannerManager::start()
 {
   start_log_.call(srv_log_);
@@ -503,16 +519,9 @@ bool ReplannerManager::start()
   ros::Duration(0.1).sleep();
   replanning_thread_ = std::thread(&ReplannerManager::replanningThread, this);
   col_check_thread_ = std::thread(&ReplannerManager::collisionCheckThread, this);
+  trj_exec_thread_ = std::thread(&ReplannerManager::trajectoryExecutionThread, this);
 
-  bool success = trajectoryExecutionThread();
-
-  if(replanning_thread_.joinable()) replanning_thread_.join();
-  if(col_check_thread_.joinable()) col_check_thread_.join();
-  if(display_thread_.joinable()) display_thread_.join();
-  if(spawn_objs_)
-  {
-    if(spawn_obj_thread_.joinable()) spawn_obj_thread_.join();
-  }
+  stop();
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
   std_msgs::Float64 fake_data;
@@ -534,7 +543,7 @@ bool ReplannerManager::start()
 
   stop_log_.call(srv_log_);
 
-  return success;
+  return true;
 }
 
 bool ReplannerManager::startWithoutReplanning()
@@ -546,10 +555,11 @@ bool ReplannerManager::startWithoutReplanning()
 
   ROS_WARN("Launching threads..");
   display_thread_ = std::thread(&ReplannerManager::displayThread, this);
+  trj_exec_thread_ = std::thread(&ReplannerManager::trajectoryExecutionThread, this);
 
-  bool success = trajectoryExecutionThread();
 
   if(display_thread_.joinable()) display_thread_.join();
+  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
   std_msgs::Float64 fake_data;
@@ -567,10 +577,10 @@ bool ReplannerManager::startWithoutReplanning()
 
   stop_log_.call(srv_log_);
 
-  return success;
+  return true;
 }
 
-bool ReplannerManager::trajectoryExecutionThread()
+void ReplannerManager::trajectoryExecutionThread()
 {
   Eigen::VectorXd past_current_configuration = current_configuration_;
   Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
@@ -661,8 +671,6 @@ bool ReplannerManager::trajectoryExecutionThread()
 
   ROS_ERROR("STOP");
   stop_ = true;
-
-  return 1;
 }
 
 bool ReplannerManager::sendRobotStateThread()
@@ -946,5 +954,4 @@ void ReplannerManager::spawnObjects()
   }
   scene_mtx_.unlock();
 }
-
 }

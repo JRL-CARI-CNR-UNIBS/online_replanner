@@ -83,6 +83,7 @@ protected:
   std::thread spawn_obj_thread_;
   std::thread replanning_thread_;
   std::thread col_check_thread_;
+  std::thread trj_exec_thread_;
 
   std::mutex planning_mtx_;
   std::mutex checker_mtx_;
@@ -117,7 +118,7 @@ protected:
   void collisionCheckThread();
   void displayThread();
   void spawnObjects();
-  bool trajectoryExecutionThread();
+  void trajectoryExecutionThread();
   bool sendRobotStateThread();
 
 public:
@@ -129,6 +130,8 @@ public:
 
   bool start();
   bool startWithoutReplanning();
+  bool stop();
+  bool cancel();
 };
 
 }
