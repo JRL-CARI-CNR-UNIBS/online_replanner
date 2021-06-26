@@ -12,27 +12,57 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
 
   subscribeTopicsAndServices();
   fromParam();
-  attributeInitialization();
 }
-
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void ReplannerManager::setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link)
+{
+  group_name_ = group_name;
+  base_link_ = base_link;
+  last_link_ = last_link;
+}
+
 void ReplannerManager::fromParam()
 {
-  if(!nh_.getParam("trj_execution_thread_frequency",trj_exec_thread_frequency_)) throw  std::invalid_argument("trj_execution_thread_frequency not set");
-  if(!nh_.getParam("collision_checker_thread_frequency",collision_checker_thread_frequency_)) throw  std::invalid_argument("collision_checker_thread_frequency not set");
-  if(!nh_.getParam("dt_replan_restricted",dt_replan_restricted_)) throw  std::invalid_argument("dt_replan_restricted not set");
-  if(!nh_.getParam("dt_replan_relaxed",dt_replan_relaxed_)) throw  std::invalid_argument("dt_replan_relaxed not set");
-  if(!nh_.getParam("group_name",group_name_)) throw  std::invalid_argument("group_name not set");
-  if(!nh_.getParam("base_link",base_link_)) throw  std::invalid_argument("base_link not set");
-  if(!nh_.getParam("last_link",last_link_)) throw  std::invalid_argument("last_link not set");
+  if(!nh_.getParam("trj_execution_thread_frequency",trj_exec_thread_frequency_))
+  {
+    ROS_ERROR("trj_execution_thread_frequency not set, set 500");
+    trj_exec_thread_frequency_ = 500;
+  }
+  if(!nh_.getParam("collision_checker_thread_frequency",collision_checker_thread_frequency_))
+  {
+    ROS_ERROR("collision_checker_thread_frequency not set, set 30");
+    collision_checker_thread_frequency_ = 30;
+  }
+  if(!nh_.getParam("dt_replan_restricted",dt_replan_restricted_))
+  {
+    ROS_ERROR("dt_replan_restricted not set, set 0.100");
+    dt_replan_restricted_ = 0.100;
+  }
+  if(!nh_.getParam("dt_replan_relaxed",dt_replan_relaxed_))
+  {
+    ROS_ERROR("dt_replan_relaxed not set, set 0.150");
+    dt_replan_relaxed_ = 0.150;
+  }
+  if(!nh_.getParam("checker_resolution",checker_resol_))
+  {
+    ROS_ERROR("checker_resolution not set, set 0.05");
+    checker_resol_ = 0.05;
+  }
+  if(!nh_.getParam("read_safe_scaling",read_safe_scaling_))
+  {
+    ROS_ERROR("read_safe_scaling not set, set false");
+    read_safe_scaling_ = false;
+  }
+
+  if(!nh_.getParam("group_name",group_name_)) ROS_ERROR("group_name not set");
+  if(!nh_.getParam("base_link",base_link_)) ROS_ERROR("base_link not set");
+  if(!nh_.getParam("last_link",last_link_)) ROS_ERROR("last_link not set");
   if(!nh_.getParam("spawn_objs",spawn_objs_)) spawn_objs_ = false;
   if(!nh_.getParam("scaling",scaling_from_param_)) scaling_from_param_ = 1.0;
-  if(!nh_.getParam("checker_resolution",checker_resol_)) checker_resol_ = 0.05;
   if(!nh_.getParam("display_timing_warning",display_timing_warning_)) display_timing_warning_ = false;
   if(!nh_.getParam("display_replanning_success",display_replanning_success_)) display_replanning_success_ = false;
-  if(!nh_.getParam("read_safe_scaling",read_safe_scaling_)) read_safe_scaling_ = false;
 }
 
 void ReplannerManager::attributeInitialization()
@@ -496,15 +526,17 @@ bool ReplannerManager::stop()
   if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_.join();
   return true;
 }
+
 bool ReplannerManager::cancel()
 {
   stop_ = true;
   return stop();
 }
 
-
 bool ReplannerManager::start()
 {
+  attributeInitialization();
+
   start_log_.call(srv_log_);
 
   target_pub_.publish(new_joint_state_);
@@ -548,6 +580,8 @@ bool ReplannerManager::start()
 
 bool ReplannerManager::startWithoutReplanning()
 {
+  attributeInitialization();
+
   start_log_.call(srv_log_);
 
   target_pub_.publish(new_joint_state_);

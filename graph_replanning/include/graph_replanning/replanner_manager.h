@@ -15,6 +15,7 @@
 #include <std_msgs/Int64.h>
 #include <std_srvs/Empty.h>
 #include <graph_core/solvers/multigoal.h>
+#include <boost/variant.hpp>
 
 namespace pathplan
 {
@@ -132,6 +133,7 @@ public:
   bool startWithoutReplanning();
   bool stop();
   bool cancel();
+  void setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link);
 };
 
 }
