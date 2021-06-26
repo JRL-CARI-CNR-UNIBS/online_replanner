@@ -7,8 +7,8 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
                                    ros::NodeHandle &nh)
 {
   current_path_ = current_path;
-  other_paths_ = other_paths;
-  nh_ = nh;
+  other_paths_  = other_paths ;
+  nh_           = nh          ;
 
   subscribeTopicsAndServices();
   fromParam();
@@ -19,8 +19,8 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
 void ReplannerManager::setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link)
 {
   group_name_ = group_name;
-  base_link_ = base_link;
-  last_link_ = last_link;
+  base_link_  = base_link ;
+  last_link_  = last_link ;
 }
 
 void ReplannerManager::fromParam()
@@ -56,60 +56,65 @@ void ReplannerManager::fromParam()
     read_safe_scaling_ = false;
   }
 
-  if(!nh_.getParam("group_name",group_name_)) ROS_ERROR("group_name not set");
-  if(!nh_.getParam("base_link",base_link_)) ROS_ERROR("base_link not set");
-  if(!nh_.getParam("last_link",last_link_)) ROS_ERROR("last_link not set");
-  if(!nh_.getParam("spawn_objs",spawn_objs_)) spawn_objs_ = false;
-  if(!nh_.getParam("scaling",scaling_from_param_)) scaling_from_param_ = 1.0;
-  if(!nh_.getParam("display_timing_warning",display_timing_warning_)) display_timing_warning_ = false;
-  if(!nh_.getParam("display_replanning_success",display_replanning_success_)) display_replanning_success_ = false;
+  if(read_safe_scaling_)
+  {
+    if(!nh_.getParam("overrides",scaling_topics_names_))
+    {
+      ROS_ERROR("overrides not set, used /speed_ovr, /safe_ovr_1, /safe_ovr_2");
+
+      scaling_topics_names_.clear();
+
+      scaling_topics_names_.push_back("/speed_ovr" );
+      scaling_topics_names_.push_back("/safe_ovr_1");
+      scaling_topics_names_.push_back("/safe_ovr_2");
+    }
+  }
+
+  if(!nh_.getParam("group_name", group_name_)) ROS_ERROR("group_name not set, maybe set later with setChainProperties(..)?");
+  if(!nh_.getParam("base_link",  base_link_ )) ROS_ERROR("base_link  not set, maybe set later with setChainProperties(..)?");
+  if(!nh_.getParam("last_link",  last_link_ )) ROS_ERROR("last_link  not set, maybe set later with setChainProperties(..)?");
+
+  if(!nh_.getParam("scaling",                    scaling_from_param_        )) scaling_from_param_         = 1.0  ;
+  if(!nh_.getParam("spawn_objs",                 spawn_objs_                )) spawn_objs_                 = false;
+  if(!nh_.getParam("display_timing_warning",     display_timing_warning_    )) display_timing_warning_     = false;
+  if(!nh_.getParam("display_replanning_success", display_replanning_success_)) display_replanning_success_ = false;
 }
 
 void ReplannerManager::attributeInitialization()
 {
-  stop_ = false;
-  replanning_ = false;
-  replanning_thread_frequency_ = 1/dt_replan_restricted_;
-  real_time_ = 0.0;
-  t_ = 0.0;
-  dt_ = 1/trj_exec_thread_frequency_;
-  replan_offset_ = (dt_replan_restricted_-dt_)*K_OFFSET;
-  t_replan_ = t_+replan_offset_;
-  n_conn_ = 0;
-  first_replan_ = true;
-  replan_relaxed_ = false;
-  path_obstructed_ = false;
-  computing_avoiding_path_ = false;
-  current_path_changed_ = false;
-  pos_closest_obs_from_goal_check_ = -1;
-  pos_closest_obs_from_goal_repl_ = pos_closest_obs_from_goal_check_;
+  stop_                            = false                               ;
+  replanning_                      = false                               ;
+  replan_relaxed_                  = false                               ;
+  path_obstructed_                 = false                               ;
+  computing_avoiding_path_         = false                               ;
+  current_path_changed_            = false                               ;
+  first_replan_                    = true                                ;
+  n_conn_                          = 0                                   ;
+  real_time_                       = 0.0                                 ;
+  t_                               = 0.0                                 ;
+  dt_                              = 1/trj_exec_thread_frequency_        ;
+  replan_offset_                   = (dt_replan_restricted_-dt_)*K_OFFSET;
+  t_replan_                        = t_+replan_offset_                   ;
+  replanning_thread_frequency_     = 1/dt_replan_restricted_             ;
+  pos_closest_obs_from_goal_check_ = -1                                  ;
+  pos_closest_obs_from_goal_repl_  = pos_closest_obs_from_goal_check_    ;
 
-  moveit::planning_interface::MoveGroupInterface move_group(group_name_);
-  robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
-  robot_model::RobotModelPtr kinematic_model = robot_model_loader.getModel();
-  kinematic_state_ = robot_state::RobotStatePtr (new robot_state::RobotState(kinematic_model));
-  planning_scn_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
-  planning_scn_replanning_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
+  moveit::planning_interface::MoveGroupInterface   move_group(group_name_)                                                  ;
+  robot_model_loader::RobotModelLoader             robot_model_loader("robot_description")                                  ;
+  robot_model::RobotModelPtr kinematic_model     = robot_model_loader.getModel()                                            ;
+  kinematic_state_                               = robot_state::RobotStatePtr (new robot_state::RobotState(kinematic_model));
+  planning_scn_                                  = std::make_shared<planning_scene::PlanningScene>(kinematic_model)         ;
+  planning_scn_replanning_                       = std::make_shared<planning_scene::PlanningScene>(kinematic_model)         ;
 
   moveit_msgs::GetPlanningScene ps_srv;
-  if (!plannning_scene_client_.call(ps_srv))
-  {
-    ROS_ERROR("call to srv not ok");
-  }
-
-  if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene))
-  {
-    ROS_ERROR("unable to update planning scene");
-  }
-
-  if (!planning_scn_replanning_->setPlanningSceneMsg(ps_srv.response.scene))
-  {
-    ROS_ERROR("unable to update planning scene");
-  }
+  if (!plannning_scene_client_.call(ps_srv)                                ) ROS_ERROR("call to srv not ok"             );
+  if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene)           ) ROS_ERROR("unable to update planning scene");
+  if (!planning_scn_replanning_->setPlanningSceneMsg(ps_srv.response.scene)) ROS_ERROR("unable to update planning scene");
 
   const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(group_name_);
-  std::vector<std::string> joint_names = joint_model_group->getActiveJointModelNames();
-  unsigned int dof = joint_names.size();
+  std::vector<std::string> joint_names                  = joint_model_group->getActiveJointModelNames()                ;
+  unsigned int dof                                      = joint_names.size()                                           ;
+
   Eigen::VectorXd lb(dof);
   Eigen::VectorXd ub(dof);
 
@@ -124,104 +129,106 @@ void ReplannerManager::attributeInitialization()
   }
 
   pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-  checker_thread_cc_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_);
-  checker_ = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
-  //checker_thread_cc_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_);
-  //checker_ = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_);
 
-  current_path_->setChecker(checker_);  //To synchronize path checker with the related one to the planning scene that will be used by the replanner, which will be different from the planning scene used by the collision checking thread
+  checker_thread_cc_           = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_           );
+  checker_                     = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
+  //checker_thread_cc_         = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_                     );
+  //checker_                   = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_          );
+
+  current_path_->setChecker(checker_);   //To synchronize path checker with the related one to the planning scene that will be used by the replanner, which will be different from the planning scene used by the collision checking thread
   for(const PathPtr &path:other_paths_) path->setChecker(checker_);
 
-  pathplan::SamplerPtr samp = std::make_shared<pathplan::InformedSampler>(current_path_->getWaypoints().front(), current_path_->getWaypoints().back(), lb, ub);
-  pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker_, samp);
+  pathplan::SamplerPtr samp   = std::make_shared<pathplan::InformedSampler>(current_path_->getWaypoints().front(), current_path_->getWaypoints().back(), lb, ub);
+  pathplan::BiRRTPtr   solver = std::make_shared<pathplan::BiRRT>(metrics, checker_, samp)                                                                      ;
+
   solver->config(nh_);
 
-  trajectory_ = std::make_shared<pathplan::Trajectory>(current_path_,nh_,planning_scn_replanning_,group_name_);
-  robot_trajectory::RobotTrajectoryPtr trj= trajectory_->fromPath2Trj();
-  moveit_msgs::RobotTrajectory tmp_trj_msg;
-  trj->getRobotTrajectoryMsg(tmp_trj_msg);
-  interpolator_.setTrajectory(tmp_trj_msg);
-  interpolator_.setSplineOrder(1);
+  trajectory_                              = std::make_shared<pathplan::Trajectory>(current_path_,nh_,planning_scn_replanning_,group_name_);
+  robot_trajectory::RobotTrajectoryPtr trj = trajectory_->fromPath2Trj()                                                                   ;
 
-  Eigen::VectorXd point2project(dof);
-  interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_);
+  moveit_msgs::RobotTrajectory tmp_trj_msg;
+  trj->getRobotTrajectoryMsg(tmp_trj_msg) ;
+  interpolator_.setTrajectory(tmp_trj_msg);
+  interpolator_.setSplineOrder(1)         ;
+
+  Eigen::VectorXd point2project(dof)                                                                      ;
+  interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_)                                         ;
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
-  configuration_replan_ = current_path_->projectOnClosestConnection(point2project);
-  current_configuration_ = current_path_->getWaypoints().front();
+
+  configuration_replan_  = current_path_->projectOnClosestConnection(point2project);
+  current_configuration_ = current_path_->getWaypoints().front()                   ;
 
   n_conn_ = 0;
 
-  //PathPtr current_path = current_path_->clone();
-  //std::vector<PathPtr> other_paths;
+  //PathPtr current_path = current_path_->clone()                            ;
+  //std::vector<PathPtr> other_paths                                         ;
   //for(const PathPtr& path:other_paths_)other_paths.push_back(path->clone());
 
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
 
   interpolator_.interpolate(ros::Duration(t_),pnt_);
-  new_joint_state_.position = pnt_.positions;
-  new_joint_state_.velocity = pnt_.velocities;
-  new_joint_state_.name = joint_names;
+
+  new_joint_state_.position        = pnt_.positions                  ;
+  new_joint_state_.velocity        = pnt_.velocities                 ;
+  new_joint_state_.name            = joint_names                     ;
   new_joint_state_.header.frame_id = kinematic_model->getModelFrame();
-  new_joint_state_.header.stamp=ros::Time::now();
+  new_joint_state_.header.stamp    = ros::Time::now()                ;
+
   //target_pub_.publish(new_joint_state_);
 }
 
 void ReplannerManager::subscribeTopicsAndServices()
 {
-  speed_ovr_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/speed_ovr",1);
-  safe_ovr_1_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_1",1);
-  safe_ovr_2_sub_ =  std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_2",1);
-  target_pub_= nh_.advertise<sensor_msgs::JointState>("/joint_target",1);
-  unscaled_target_pub_= nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1);
-  plannning_scene_client_ = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene");
+//  speed_ovr_sub_           = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/speed_ovr",1 );
+//  safe_ovr_1_sub_          = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_1",1);
+//  safe_ovr_2_sub_          = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_2",1);
 
-  if (!plannning_scene_client_.waitForExistence(ros::Duration(10)))
+  scaling_topics_vector_.clear();
+  for(const std::string &scaling_topic_name : scaling_topics_names_)
   {
-    ROS_ERROR("unable to connect to /get_planning_scene");
+    scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1));
   }
 
-  time_pub_= nh_.advertise<std_msgs::Float64>("/time_topic",1);
-  current_norm_pub_ = nh_.advertise<std_msgs::Float64>("/current_norm_topic", 1000);
-  new_norm_pub_ = nh_.advertise<std_msgs::Float64>("/new_norm_topic", 1000);
-  time_replanning_pub_ = nh_.advertise<std_msgs::Float64>("/time_replanning_topic", 1000);
-  obs_current_norm_pub_ = nh_.advertise<std_msgs::Float64>("/obs_current_norm_topic", 1000);
-  obs_new_norm_pub_ = nh_.advertise<std_msgs::Float64>("/obs_new_norm_topic", 1000);
-  obs_time_replanning_pub_ = nh_.advertise<std_msgs::Float64>("/obs_time_replanning_topic", 1000);
-  start_log_ = nh_.serviceClient<std_srvs::Empty> ("/start_log");
-  stop_log_  = nh_.serviceClient<std_srvs::Empty> ("/stop_log");
+  target_pub_              = nh_.advertise<sensor_msgs::JointState>("/joint_target",1                               );
+  unscaled_target_pub_     = nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1                      );
+  time_pub_                = nh_.advertise<std_msgs::Float64>("/time_topic",1                                       );
+  current_norm_pub_        = nh_.advertise<std_msgs::Float64>("/current_norm_topic", 1000                           );
+  new_norm_pub_            = nh_.advertise<std_msgs::Float64>("/new_norm_topic", 1000                               );
+  time_replanning_pub_     = nh_.advertise<std_msgs::Float64>("/time_replanning_topic", 1000                        );
+  obs_current_norm_pub_    = nh_.advertise<std_msgs::Float64>("/obs_current_norm_topic", 1000                       );
+  obs_new_norm_pub_        = nh_.advertise<std_msgs::Float64>("/obs_new_norm_topic", 1000                           );
+  obs_time_replanning_pub_ = nh_.advertise<std_msgs::Float64>("/obs_time_replanning_topic", 1000                    );
+  plannning_scene_client_  = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene"                 );
+  start_log_               = nh_.serviceClient<std_srvs::Empty>("/start_log"                                        );
+  stop_log_                = nh_.serviceClient<std_srvs::Empty>("/stop_log"                                         );
+  add_obj_                 = nh_.serviceClient<object_loader_msgs::AddObjects>("/add_object_to_scene"               );
+  remove_obj_              = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene"       );
 
-  add_obj_ = nh_.serviceClient<object_loader_msgs::AddObjects>("/add_object_to_scene");
-  remove_obj_ = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene");
-  if (!add_obj_.waitForExistence(ros::Duration(10)))
-  {
-    ROS_ERROR("unable to connect to /add_object_to_scene");
-  }
-  if (!remove_obj_.waitForExistence(ros::Duration(10)))
-  {
-    ROS_ERROR("unable to connect to /remove_object_to_scene");
-  }
-
+  if (!plannning_scene_client_.waitForExistence(ros::Duration(10))) throw std::invalid_argument("unable to connect to /get_planning_scene");
+  if (!add_obj_               .waitForExistence(ros::Duration(10))) ROS_ERROR("unable to connect to /add_object_to_scene"                 );
+  if (!remove_obj_            .waitForExistence(ros::Duration(10))) ROS_ERROR("unable to connect to /remove_object_to_scene"              );
 }
 
 void ReplannerManager::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
 
-  bool replan = true;
-  bool success = 0;
-  bool old_path_obstructed = path_obstructed_;
-  int n_conn_replan = 0;
-  double past_abscissa;
-  double abscissa;
-  double time_informedOnlineRepl;
-  std::string string_dt;
-  Eigen::VectorXd goal = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
+  bool replan                               = true                                                                                 ;
+  bool success                              = 0                                                                                    ;
+  bool old_path_obstructed                  = path_obstructed_                                                                     ;
+  int n_conn_replan                         = 0                                                                                    ;
+  Eigen::VectorXd goal                      = replanner_->getCurrentPath()->getConnections().back()->getChild()->getConfiguration();
+  Eigen::VectorXd past_configuration_replan = configuration_replan_                                                                ;
+
   Eigen::VectorXd point2project(pnt_replan_.positions.size());
-  Eigen::VectorXd projection;
-  Eigen::VectorXd past_configuration_replan = configuration_replan_;
-  PathPtr path2project_on;
-  pathplan::PathPtr current_path_copy;
-  std::vector<pathplan::PathPtr> other_paths_copy;
+  Eigen::VectorXd projection                                 ;
+  PathPtr path2project_on                                    ;
+  pathplan::PathPtr current_path_copy                        ;
+  std::vector<pathplan::PathPtr> other_paths_copy            ;
+  std::string string_dt                                      ;
+  double past_abscissa                                       ;
+  double abscissa                                            ;
+  double time_informedOnlineRepl                             ;
 
   while (!stop_ && ros::ok())
   {
@@ -519,17 +526,17 @@ void ReplannerManager::collisionCheckThread()
 
 bool ReplannerManager::stop()
 {
-  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
-  if(replanning_thread_.joinable()) replanning_thread_.join();
-  if(col_check_thread_.joinable()) col_check_thread_.join();
-  if(display_thread_.joinable()) display_thread_.join();
-  if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_.join();
+  if(trj_exec_thread_                .joinable()) trj_exec_thread_  .join();
+  if(replanning_thread_              .joinable()) replanning_thread_.join();
+  if(col_check_thread_               .joinable()) col_check_thread_ .join();
+  if(display_thread_                 .joinable()) display_thread_   .join();
+  if(spawn_objs_ && spawn_obj_thread_.joinable()) spawn_obj_thread_ .join();
   return true;
 }
 
 bool ReplannerManager::cancel()
 {
-  stop_ = true;
+  stop_ = true ;
   return stop();
 }
 
@@ -539,39 +546,41 @@ bool ReplannerManager::start()
 
   start_log_.call(srv_log_);
 
-  target_pub_.publish(new_joint_state_);
+  target_pub_         .publish(new_joint_state_);
   unscaled_target_pub_.publish(new_joint_state_);
 
   ROS_WARN("Launching threads..");
-  display_thread_ = std::thread(&ReplannerManager::displayThread, this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
 
+  display_thread_                   = std::thread(&ReplannerManager::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
+  if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManager::spawnObjects              ,this);
   ros::Duration(2).sleep();
-
-  if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManager::spawnObjects, this);
-  ros::Duration(0.1).sleep();
-  replanning_thread_ = std::thread(&ReplannerManager::replanningThread, this);
-  col_check_thread_ = std::thread(&ReplannerManager::collisionCheckThread, this);
-  trj_exec_thread_ = std::thread(&ReplannerManager::trajectoryExecutionThread, this);
+  replanning_thread_                = std::thread(&ReplannerManager::replanningThread          ,this);
+  col_check_thread_                 = std::thread(&ReplannerManager::collisionCheckThread      ,this);
+  trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
 
   stop();
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
-  std_msgs::Float64 fake_data;
+  std_msgs::Float64       fake_data ;
   sensor_msgs::JointState joint_fake;
-  joint_fake.position = pnt_.positions;
-  joint_fake.velocity = pnt_.velocities;
-  joint_fake.name = new_joint_state_.name;
+
+  joint_fake.name            = new_joint_state_.name           ;
+  joint_fake.position        = pnt_.positions                  ;
+  joint_fake.velocity        = pnt_.velocities                 ;
+  joint_fake.header.stamp    = ros::Time::now()                ;
   joint_fake.header.frame_id = new_joint_state_.header.frame_id;
-  joint_fake.header.stamp=ros::Time::now();
-  fake_data.data = 0.0;
-  obs_current_norm_pub_.publish(fake_data);
-  obs_new_norm_pub_.publish(fake_data);
-  obs_time_replanning_pub_.publish(fake_data);
-  current_norm_pub_.publish(fake_data);
-  new_norm_pub_.publish(fake_data);
-  time_replanning_pub_.publish(fake_data);
-  time_pub_.publish(fake_data);
+
   target_pub_.publish(joint_fake);
+
+  fake_data.data = 0.0;
+
+  time_pub_               .publish(fake_data);
+  new_norm_pub_           .publish(fake_data);
+  current_norm_pub_       .publish(fake_data);
+  obs_new_norm_pub_       .publish(fake_data);
+  time_replanning_pub_    .publish(fake_data);
+  obs_current_norm_pub_   .publish(fake_data);
+  obs_time_replanning_pub_.publish(fake_data);
 
   stop_log_.call(srv_log_);
 
@@ -584,35 +593,57 @@ bool ReplannerManager::startWithoutReplanning()
 
   start_log_.call(srv_log_);
 
-  target_pub_.publish(new_joint_state_);
+  target_pub_         .publish(new_joint_state_);
   unscaled_target_pub_.publish(new_joint_state_);
 
   ROS_WARN("Launching threads..");
-  display_thread_ = std::thread(&ReplannerManager::displayThread, this);
-  trj_exec_thread_ = std::thread(&ReplannerManager::trajectoryExecutionThread, this);
 
+  display_thread_                   = std::thread(&ReplannerManager::displayThread             ,this);
+  trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
 
-  if(display_thread_.joinable()) display_thread_.join();
-  if(trj_exec_thread_.joinable()) trj_exec_thread_.join();
+  stop();
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
-  std_msgs::Float64 fake_data;
+  std_msgs::Float64       fake_data ;
   sensor_msgs::JointState joint_fake;
-  joint_fake.position = pnt_.positions;
-  joint_fake.velocity = pnt_.velocities;
-  joint_fake.name = new_joint_state_.name;
+
+  joint_fake.name            = new_joint_state_.name           ;
+  joint_fake.position        = pnt_.positions                  ;
+  joint_fake.velocity        = pnt_.velocities                 ;
+  joint_fake.header.stamp    = ros::Time::now()                ;
   joint_fake.header.frame_id = new_joint_state_.header.frame_id;
-  joint_fake.header.stamp=ros::Time::now();
-  fake_data.data = 0.0;
-  obs_current_norm_pub_.publish(fake_data);
-  current_norm_pub_.publish(fake_data);
-  time_pub_.publish(fake_data);
+
   target_pub_.publish(joint_fake);
+
+  fake_data.data = 0.0;
+
+  time_pub_               .publish(fake_data);
+  new_norm_pub_           .publish(fake_data);
+  current_norm_pub_       .publish(fake_data);
+  obs_new_norm_pub_       .publish(fake_data);
+  time_replanning_pub_    .publish(fake_data);
+  obs_current_norm_pub_   .publish(fake_data);
+  obs_time_replanning_pub_.publish(fake_data);
 
   stop_log_.call(srv_log_);
 
   return true;
 }
+
+double ReplannerManager::readScalingTopics()
+{
+  double total_scaling = 1.0;
+  for(auto &scaling_topic:scaling_topics_vector_)
+  {
+    double scaling = (double) scaling_topic->getData().data/100;
+    if(scaling>1.0) scaling = 1.0;
+    else if(scaling<0.0) scaling = 0.0;
+
+    total_scaling *= scaling;
+  }
+  return total_scaling;
+}
+
 
 void ReplannerManager::trajectoryExecutionThread()
 {
@@ -639,17 +670,10 @@ void ReplannerManager::trajectoryExecutionThread()
     tic = ros::WallTime::now();
 
     double scaling = 1.0;
-    if(read_safe_scaling_)
-    {
-      scaling_ = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
-      //metti controllo sui valori pubblicati
-    }
-    else
-    {
-      scaling_ = scaling_from_param_;
-    }
+    if(read_safe_scaling_) scaling = readScalingTopics(); //scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
+    else                   scaling = scaling_from_param_;
 
-    t_+= scaling_*dt_;
+    t_+= scaling*dt_;
 
     toc = ros::WallTime::now();
     duration2 = (toc-tic).toSec();
@@ -664,7 +688,7 @@ void ReplannerManager::trajectoryExecutionThread()
     duration3 = (toc-tic).toSec();
 
     paths_mtx_.lock();
-    path2project_on = current_path_->clone();   //CHIEDI SE BASTA O DEVO FARNE LA COPIA (puntano allo stesso oggetto)  //se no usa replanner_->getCurrentPath()
+    path2project_on = current_path_->clone();
     paths_mtx_.unlock();
 
     tic = ros::WallTime::now();
