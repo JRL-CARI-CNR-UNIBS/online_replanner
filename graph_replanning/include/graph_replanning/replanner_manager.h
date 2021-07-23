@@ -40,6 +40,7 @@ protected:
   ros::NodeHandle      nh_                                ;
 
   // Global variables
+  bool finished_                  ;
   bool stop_                      ;
   bool first_replan_              ;
   bool path_obstructed_           ;
@@ -56,28 +57,31 @@ protected:
   int    n_conn_                         ;
   int    pos_closest_obs_from_goal_repl_ ;
   int    pos_closest_obs_from_goal_check_;
-  double real_time_                      ;
-  double t_                              ;
-  double dt_                             ;
-  double replan_offset_                  ;
-  double t_replan_                       ;
-  double replanning_thread_frequency_    ;
-  double scaling_from_param_             ;
-  double checker_resol_                  ;
 
-  ReplannerPtr                              replanner_              ;
-  Eigen::VectorXd                           current_configuration_  ;
-  Eigen::VectorXd                           configuration_replan_   ;
-  CollisionCheckerPtr                       checker_thread_cc_      ;
-  CollisionCheckerPtr                       checker_                ;
-  TrajectoryPtr                             trajectory_             ;
-  planning_scene::PlanningScenePtr          planning_scn_           ;
-  planning_scene::PlanningScenePtr          planning_scn_replanning_;
-  trajectory_processing::SplineInterpolator interpolator_           ;
-  trajectory_msgs::JointTrajectoryPoint     pnt_                    ;
-  trajectory_msgs::JointTrajectoryPoint     pnt_replan_             ;
-  sensor_msgs::JointState                   new_joint_state_        ;
-  robot_state::RobotStatePtr                kinematic_state_        ;
+  double real_time_                  ;
+  double t_                          ;
+  double dt_                         ;
+  double replan_offset_              ;
+  double t_replan_                   ;
+  double replanning_thread_frequency_;
+  double scaling_from_param_         ;
+  double checker_resol_              ;
+  double goal_toll_                  ;
+
+  ReplannerPtr                              replanner_               ;
+  Eigen::VectorXd                           current_configuration_   ;
+  Eigen::VectorXd                           configuration_replan_    ;
+  CollisionCheckerPtr                       checker_thread_cc_       ;
+  CollisionCheckerPtr                       checker_                 ;
+  TrajectoryPtr                             trajectory_              ;
+  planning_scene::PlanningScenePtr          planning_scn_            ;
+  planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
+  trajectory_processing::SplineInterpolator interpolator_            ;
+  trajectory_msgs::JointTrajectoryPoint     pnt_                     ;
+  trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
+  sensor_msgs::JointState                   unscaled_new_joint_state_;
+  sensor_msgs::JointState                   new_joint_state_         ;
+  robot_state::RobotStatePtr                kinematic_state_         ;
 
   std::thread display_thread_   ;
   std::thread spawn_obj_thread_ ;
@@ -125,21 +129,35 @@ protected:
   void displayThread()             ;
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
-  bool sendRobotStateThread()      ;
-  double readScalingTopics();
+  bool stop()                      ;
+  double readScalingTopics()       ;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  ReplannerManager(PathPtr &current_path,
+  ReplannerManager(PathPtr              &current_path,
                    std::vector<PathPtr> &other_paths,
-                   ros::NodeHandle &nh);
+                   ros::NodeHandle      &nh);
+
+  trajectory_msgs::JointTrajectoryPoint  getUnscaledJointTarget()
+  {
+    trajectory_msgs::JointTrajectoryPoint pnt;
+    return unscaled_new_joint_state_;
+  }
+  trajectory_msgs::JointTrajectoryPoint  getJointTarget()
+  {
+    return new_joint_state_;
+  }
+  bool finished()
+  {
+    return finished_;
+  }
 
   bool start()                                                                                    ;
   bool startWithoutReplanning()                                                                   ;
-  bool stop()                                                                                     ;
   bool cancel()                                                                                   ;
   void setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link);
+
 };
 
 }

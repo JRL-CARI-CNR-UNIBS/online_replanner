@@ -74,14 +74,16 @@ void ReplannerManager::fromParam()
   if(!nh_.getParam("base_link",  base_link_ )) ROS_ERROR("base_link  not set, maybe set later with setChainProperties(..)?");
   if(!nh_.getParam("last_link",  last_link_ )) ROS_ERROR("last_link  not set, maybe set later with setChainProperties(..)?");
 
-  if(!nh_.getParam("scaling",                    scaling_from_param_        )) scaling_from_param_         = 1.0  ;
-  if(!nh_.getParam("spawn_objs",                 spawn_objs_                )) spawn_objs_                 = false;
-  if(!nh_.getParam("display_timing_warning",     display_timing_warning_    )) display_timing_warning_     = false;
-  if(!nh_.getParam("display_replanning_success", display_replanning_success_)) display_replanning_success_ = false;
+  if(!nh_.getParam("goal_toll",                  goal_toll_                 )) goal_toll_                  = 1.0e-03  ;
+  if(!nh_.getParam("scaling",                    scaling_from_param_        )) scaling_from_param_         = 1.0      ;
+  if(!nh_.getParam("spawn_objs",                 spawn_objs_                )) spawn_objs_                 = false    ;
+  if(!nh_.getParam("display_timing_warning",     display_timing_warning_    )) display_timing_warning_     = false    ;
+  if(!nh_.getParam("display_replanning_success", display_replanning_success_)) display_replanning_success_ = false    ;
 }
 
 void ReplannerManager::attributeInitialization()
 {
+  finished_                        = false                               ;
   stop_                            = false                               ;
   replanning_                      = false                               ;
   replan_relaxed_                  = false                               ;
@@ -160,10 +162,6 @@ void ReplannerManager::attributeInitialization()
 
   n_conn_ = 0;
 
-  //PathPtr current_path = current_path_->clone()                            ;
-  //std::vector<PathPtr> other_paths                                         ;
-  //for(const PathPtr& path:other_paths_)other_paths.push_back(path->clone());
-
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
 
   interpolator_.interpolate(ros::Duration(t_),pnt_);
@@ -173,6 +171,8 @@ void ReplannerManager::attributeInitialization()
   new_joint_state_.name            = joint_names                     ;
   new_joint_state_.header.frame_id = kinematic_model->getModelFrame();
   new_joint_state_.header.stamp    = ros::Time::now()                ;
+
+  unscaled_new_joint_state_ = new_joint_state_;
 
   //target_pub_.publish(new_joint_state_);
 }
@@ -241,7 +241,7 @@ void ReplannerManager::replanningThread()
     for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
     trj_mtx_.unlock();
 
-    replan =  (point2project-goal).norm()>1e-03;
+    replan =  (point2project-goal).norm()>goal_toll_;
 
     if(replan)
     {
@@ -546,8 +546,8 @@ bool ReplannerManager::start()
 
   start_log_.call(srv_log_);
 
-  target_pub_         .publish(new_joint_state_);
-  unscaled_target_pub_.publish(new_joint_state_);
+  target_pub_         .publish(new_joint_state_         );
+  unscaled_target_pub_.publish(unscaled_new_joint_state_);
 
   ROS_WARN("Launching threads..");
 
@@ -593,8 +593,8 @@ bool ReplannerManager::startWithoutReplanning()
 
   start_log_.call(srv_log_);
 
-  target_pub_         .publish(new_joint_state_);
-  unscaled_target_pub_.publish(new_joint_state_);
+  target_pub_         .publish(new_joint_state_         );
+  unscaled_target_pub_.publish(unscaled_new_joint_state_);
 
   ROS_WARN("Launching threads..");
 
@@ -699,12 +699,16 @@ void ReplannerManager::trajectoryExecutionThread()
     toc = ros::WallTime::now();
     duration4 = (toc-tic).toSec();
 
-    if((point2project-goal_conf).norm()<1e-3) stop_ = true;
+    if((point2project-goal_conf).norm()<goal_toll_)
+    {
+      finished_ = true;
+      stop_     = true;
+    }
 
-    new_joint_state_.position = pnt.positions;
-    new_joint_state_.velocity = pnt.velocities;
-    new_joint_state_.header.stamp=ros::Time::now();
-    unscaled_target_pub_.publish(new_joint_state_);
+    unscaled_new_joint_state_.position = pnt.positions;
+    unscaled_new_joint_state_.velocity = pnt.velocities;
+    unscaled_new_joint_state_.header.stamp=ros::Time::now();
+    unscaled_target_pub_.publish(unscaled_new_joint_state_);
 
     new_joint_state_.position = pnt.positions;
     for(unsigned int i=0;i<pnt.velocities.size(); i++) new_joint_state_.velocity[i] = pnt.velocities[i]*scaling;
@@ -729,75 +733,6 @@ void ReplannerManager::trajectoryExecutionThread()
 
   ROS_ERROR("STOP");
   stop_ = true;
-}
-
-bool ReplannerManager::sendRobotStateThread()
-{
-  /*double send_state_thread_frequency = 500.0;
-  double dt = 1/send_state_thread_frequency;
-  double t = t_;
-  double t_trj_thread = t_;
-  Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
-  trajectory_msgs::JointTrajectoryPoint pnt;
-
-  ros::Rate lp(send_state_thread_frequency);
-  while(!stop_ && ros::ok())
-  {
-    real_time_ += dt;
-
-    send_robot_mtx_.lock();
-    double scaling = scaling_;
-
-    if(t_trj_thread == t_)
-    {
-      t+= scaling*dt;
-    }
-    else          //the trj_exec_thread cycle is changed
-    {
-      t_trj_thread = t_;
-      t = t_;
-    }
-
-    //pnt = pnt_;
-    //if((current_configuration_-goal_conf).norm()<1e-3) stop_ = true;
-    //send_robot_mtx_.unlock();
-
-    fast_interpolator_.interpolate(ros::Duration(t),real_pnt_);
-    pnt = real_pnt_;
-    Eigen::VectorXd point2project(pnt.positions.size());
-    for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
-    real_pos_ = point2project;
-    send_robot_mtx_.unlock();
-
-    if((point2project-goal_conf).norm()<1e-3) stop_ = true;
-
-    new_joint_state_.position = pnt.positions;
-    new_joint_state_.velocity = pnt.velocities;
-    new_joint_state_.header.stamp=ros::Time::now();
-    unscaled_target_pub_.publish(new_joint_state_);
-
-    new_joint_state_.position = pnt.positions;
-    for(unsigned int i=0;i<pnt.velocities.size(); i++) new_joint_state_.velocity[i] = pnt.velocities[i]*scaling;
-    new_joint_state_.header.stamp=ros::Time::now();
-    target_pub_.publish(new_joint_state_);
-
-    std_msgs::Float64 time_msg;
-    time_msg.data = real_time_;
-    time_pub_.publish(time_msg);
-
-    lp.sleep();
-  }
-
-  ROS_ERROR("STOP");
-  stop_ = true;
-
-  return 1;*/
-  while(ros::ok())
-  {
-    ros::Duration(0.00001).sleep();
-  }
-  stop_ = true;
-  return 1;
 }
 
 void ReplannerManager::displayThread()
