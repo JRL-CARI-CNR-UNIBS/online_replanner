@@ -130,7 +130,6 @@ protected:
   void displayThread()             ;
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
-  bool stop()                      ;
   double readScalingTopics()       ;
 
 public:
@@ -155,9 +154,11 @@ public:
     return pnt_unscaled_;
   }
 
+  bool run()                                                                                      ;
   bool start()                                                                                    ;
   bool startWithoutReplanning()                                                                   ;
   bool cancel()                                                                                   ;
+  bool stop()                                                                                     ;
   void setChainProperties(std::string &group_name, std::string &base_link, std::string &last_link);
 
 };

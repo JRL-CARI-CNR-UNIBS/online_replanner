@@ -546,11 +546,9 @@ bool ReplannerManager::cancel()
   return stop();
 }
 
-bool ReplannerManager::start()
+bool ReplannerManager::run()
 {
   attributeInitialization();
-
-  start_log_.call(srv_log_);
 
   target_pub_         .publish(new_joint_state_         );
   unscaled_target_pub_.publish(new_joint_state_unscaled_);
@@ -564,7 +562,15 @@ bool ReplannerManager::start()
   col_check_thread_                 = std::thread(&ReplannerManager::collisionCheckThread      ,this);
   trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
 
-  stop();
+  return true;
+}
+
+bool ReplannerManager::start()
+{
+  start_log_.call(srv_log_);
+
+  run();
+  cancel();
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
   std_msgs::Float64       fake_data ;
@@ -607,7 +613,7 @@ bool ReplannerManager::startWithoutReplanning()
   display_thread_                   = std::thread(&ReplannerManager::displayThread             ,this);
   trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
 
-  stop();
+  cancel();
 
   // BINARY LOGGER SALVA FINO A I-1 ESIMO DATO PUBBLICATO, QUESTO AIUTA A SALVARLI TUTTI
   std_msgs::Float64       fake_data ;
@@ -915,8 +921,6 @@ void ReplannerManager::spawnObjects()
 
       srv_add_object.request.objects.clear();
       srv_add_object.request.objects.push_back(obj);
-
-      srv_add_object.
 
       scene_mtx_.lock();
       if (!add_obj_.call(srv_add_object))
