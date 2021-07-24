@@ -78,7 +78,7 @@ public:
 
   robot_trajectory::RobotTrajectoryPtr getTrj()
   {
-    if(trj_ == NULL) ROS_ERROR("Trj not computed");
+    if(trj_ == NULL) ROS_ERROR("Trj not computed");    
     return trj_;
   }
 

@@ -147,10 +147,11 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
 robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint &pnt)
 {
   trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
-  pnt_ptr->positions = pnt.positions;
-  pnt_ptr->velocities = pnt.velocities;
-  pnt_ptr->accelerations = pnt.accelerations;
-  pnt_ptr->effort = pnt.effort;
+
+  pnt_ptr->positions       = pnt.positions      ;
+  pnt_ptr->velocities      = pnt.velocities     ;
+  pnt_ptr->accelerations   = pnt.accelerations  ;
+  pnt_ptr->effort          = pnt.effort          ;
   pnt_ptr->time_from_start = pnt.time_from_start;
 
   return Trajectory::fromPath2Trj(pnt_ptr);
@@ -173,8 +174,8 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   {
     if (j==0 && pnt != NULL)
     {
-      wp_state_vector.at(j).setJointGroupPositions(group_name_,pnt->positions);
-      wp_state_vector.at(j).setJointGroupVelocities(group_name_,pnt->velocities);
+      wp_state_vector.at(j).setJointGroupPositions    (group_name_,pnt->positions    );
+      wp_state_vector.at(j).setJointGroupVelocities   (group_name_,pnt->velocities   );
       wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
     trj_->addSuffixWayPoint(wp_state_vector.at(j),0);

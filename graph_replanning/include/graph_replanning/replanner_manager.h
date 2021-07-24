@@ -78,8 +78,9 @@ protected:
   planning_scene::PlanningScenePtr          planning_scn_replanning_ ;
   trajectory_processing::SplineInterpolator interpolator_            ;
   trajectory_msgs::JointTrajectoryPoint     pnt_                     ;
+  trajectory_msgs::JointTrajectoryPoint     pnt_unscaled_            ;
   trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
-  sensor_msgs::JointState                   unscaled_new_joint_state_;
+  sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
   robot_state::RobotStatePtr                kinematic_state_         ;
 
@@ -139,18 +140,19 @@ public:
                    std::vector<PathPtr> &other_paths,
                    ros::NodeHandle      &nh);
 
-  trajectory_msgs::JointTrajectoryPoint  getUnscaledJointTarget()
-  {
-    trajectory_msgs::JointTrajectoryPoint pnt;
-    return unscaled_new_joint_state_;
-  }
-  trajectory_msgs::JointTrajectoryPoint  getJointTarget()
-  {
-    return new_joint_state_;
-  }
   bool finished()
   {
     return finished_;
+  }
+
+  trajectory_msgs::JointTrajectoryPoint getJointTarget()
+  {
+    return pnt_;
+  }
+
+  trajectory_msgs::JointTrajectoryPoint getUnscaledJointTarget()
+  {
+    return pnt_unscaled_;
   }
 
   bool start()                                                                                    ;

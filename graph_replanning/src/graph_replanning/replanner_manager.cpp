@@ -153,8 +153,15 @@ void ReplannerManager::attributeInitialization()
   interpolator_.setTrajectory(tmp_trj_msg);
   interpolator_.setSplineOrder(1)         ;
 
-  Eigen::VectorXd point2project(dof)                                                                      ;
-  interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_)                                         ;
+  double scaling = 1.0;
+  if(read_safe_scaling_) scaling = readScalingTopics();
+  else                   scaling = scaling_from_param_;
+
+  interpolator_.interpolate(ros::Duration(t_replan_),pnt_replan_  ,scaling);
+  interpolator_.interpolate(ros::Duration(t_       ),pnt_         ,scaling);
+  interpolator_.interpolate(ros::Duration(t_       ),pnt_unscaled_,1.0    );
+
+  Eigen::VectorXd point2project(dof);
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
 
   configuration_replan_  = current_path_->projectOnClosestConnection(point2project);
@@ -164,17 +171,16 @@ void ReplannerManager::attributeInitialization()
 
   replanner_ = std::make_shared<pathplan::Replanner>(configuration_replan_, current_path_, other_paths_, solver, metrics, checker_, lb, ub);
 
-  interpolator_.interpolate(ros::Duration(t_),pnt_);
-
-  new_joint_state_.position        = pnt_.positions                  ;
-  new_joint_state_.velocity        = pnt_.velocities                 ;
-  new_joint_state_.name            = joint_names                     ;
-  new_joint_state_.header.frame_id = kinematic_model->getModelFrame();
-  new_joint_state_.header.stamp    = ros::Time::now()                ;
-
-  unscaled_new_joint_state_ = new_joint_state_;
-
-  //target_pub_.publish(new_joint_state_);
+  new_joint_state_.position                 = pnt_.positions                  ;
+  new_joint_state_.velocity                 = pnt_.velocities                 ;
+  new_joint_state_.name                     = joint_names                     ;
+  new_joint_state_.header.frame_id          = kinematic_model->getModelFrame();
+  new_joint_state_.header.stamp             = ros::Time::now()                ;
+  new_joint_state_unscaled_.position        = pnt_unscaled_.positions         ;
+  new_joint_state_unscaled_.velocity        = pnt_unscaled_.velocities        ;
+  new_joint_state_unscaled_.name            = joint_names                     ;
+  new_joint_state_unscaled_.header.frame_id = kinematic_model->getModelFrame();
+  new_joint_state_unscaled_.header.stamp    = ros::Time::now()                ;
 }
 
 void ReplannerManager::subscribeTopicsAndServices()
@@ -547,13 +553,13 @@ bool ReplannerManager::start()
   start_log_.call(srv_log_);
 
   target_pub_         .publish(new_joint_state_         );
-  unscaled_target_pub_.publish(unscaled_new_joint_state_);
+  unscaled_target_pub_.publish(new_joint_state_unscaled_);
 
   ROS_WARN("Launching threads..");
 
   display_thread_                   = std::thread(&ReplannerManager::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManager::spawnObjects              ,this);
-  ros::Duration(2).sleep();
+  ros::Duration(0.5).sleep()                                                                         ;
   replanning_thread_                = std::thread(&ReplannerManager::replanningThread          ,this);
   col_check_thread_                 = std::thread(&ReplannerManager::collisionCheckThread      ,this);
   trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
@@ -594,7 +600,7 @@ bool ReplannerManager::startWithoutReplanning()
   start_log_.call(srv_log_);
 
   target_pub_         .publish(new_joint_state_         );
-  unscaled_target_pub_.publish(unscaled_new_joint_state_);
+  unscaled_target_pub_.publish(new_joint_state_unscaled_);
 
   ROS_WARN("Launching threads..");
 
@@ -651,6 +657,7 @@ void ReplannerManager::trajectoryExecutionThread()
   Eigen::VectorXd goal_conf = current_path_->getWaypoints().back();
   PathPtr path2project_on;
   trajectory_msgs::JointTrajectoryPoint pnt;
+  trajectory_msgs::JointTrajectoryPoint pnt_unscaled;
 
   ros::WallTime tic;
   ros::WallTime toc;
@@ -679,8 +686,12 @@ void ReplannerManager::trajectoryExecutionThread()
     duration2 = (toc-tic).toSec();
     tic = ros::WallTime::now();
 
-    interpolator_.interpolate(ros::Duration(t_),pnt_);
-    pnt = pnt_;
+    interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling);
+    interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,1.0    );
+
+    pnt          = pnt_         ;
+    pnt_unscaled = pnt_unscaled_;
+
     Eigen::VectorXd point2project(pnt_.positions.size());
     for(unsigned int i=0; i<pnt_.positions.size();i++) point2project[i] = pnt_.positions.at(i);
     trj_mtx_.unlock();
@@ -705,15 +716,15 @@ void ReplannerManager::trajectoryExecutionThread()
       stop_     = true;
     }
 
-    unscaled_new_joint_state_.position = pnt.positions;
-    unscaled_new_joint_state_.velocity = pnt.velocities;
-    unscaled_new_joint_state_.header.stamp=ros::Time::now();
-    unscaled_target_pub_.publish(unscaled_new_joint_state_);
+    new_joint_state_unscaled_.position     = pnt_unscaled.positions ;
+    new_joint_state_unscaled_.velocity     = pnt_unscaled.velocities;
+    new_joint_state_unscaled_.header.stamp = ros::Time::now()       ;
+    new_joint_state_.position              = pnt.positions          ;
+    new_joint_state_.velocity              = pnt.velocities         ;
+    new_joint_state_.header.stamp          = ros::Time::now()       ;
 
-    new_joint_state_.position = pnt.positions;
-    for(unsigned int i=0;i<pnt.velocities.size(); i++) new_joint_state_.velocity[i] = pnt.velocities[i]*scaling;
-    new_joint_state_.header.stamp=ros::Time::now();
-    target_pub_.publish(new_joint_state_);
+    unscaled_target_pub_.publish(new_joint_state_unscaled_)         ;
+    target_pub_         .publish(new_joint_state_)                  ;
 
     std_msgs::Float64 time_msg;
     time_msg.data = real_time_;
@@ -904,6 +915,8 @@ void ReplannerManager::spawnObjects()
 
       srv_add_object.request.objects.clear();
       srv_add_object.request.objects.push_back(obj);
+
+      srv_add_object.
 
       scene_mtx_.lock();
       if (!add_obj_.call(srv_add_object))
