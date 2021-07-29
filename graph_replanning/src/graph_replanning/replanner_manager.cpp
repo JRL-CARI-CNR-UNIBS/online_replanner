@@ -101,6 +101,10 @@ void ReplannerManager::attributeInitialization()
   pos_closest_obs_from_goal_check_ = -1                                  ;
   pos_closest_obs_from_goal_repl_  = pos_closest_obs_from_goal_check_    ;
 
+  if(group_name_.empty()) throw std::invalid_argument("group name not set");
+  if(base_link_ .empty()) throw std::invalid_argument("base link not set" );
+  if(last_link_ .empty()) throw std::invalid_argument("last link not set" );
+
   moveit::planning_interface::MoveGroupInterface   move_group(group_name_)                                                  ;
   robot_model_loader::RobotModelLoader             robot_model_loader("robot_description")                                  ;
   robot_model::RobotModelPtr kinematic_model     = robot_model_loader.getModel()                                            ;
