@@ -271,7 +271,6 @@ int main(int argc, char **argv)
     }
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
     pathplan::PathPtr current_path = path_vector.back();
     std::vector<pathplan::PathPtr> other_paths = {path_vector.at(1),path_vector.at(2),path_vector.at(0)};
 
