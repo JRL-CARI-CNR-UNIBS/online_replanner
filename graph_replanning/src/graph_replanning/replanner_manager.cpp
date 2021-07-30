@@ -240,7 +240,11 @@ void ReplannerManager::replanningThread()
   double abscissa                                            ;
   double time_informedOnlineRepl                             ;
 
-  while (!stop_ && ros::ok())
+  stop_mtx_.lock();
+  bool stop = stop_;
+  stop_mtx_.unlock();
+
+  while (!stop && ros::ok())
   {
     ros::WallTime tic_tot=ros::WallTime::now();
 
@@ -337,7 +341,11 @@ void ReplannerManager::replanningThread()
       ros::WallTime tic_trj;
       ros::WallTime toc_trj;
 
-      if(success && !stop_)
+      stop_mtx_.lock();
+      bool stop = stop_;
+      stop_mtx_.unlock();
+
+      if(success && !stop)
       {
         if(first_replan_)
         {
@@ -437,6 +445,11 @@ void ReplannerManager::replanningThread()
         if(success) ROS_WARN("trj computation time-> %f",(toc_trj-tic_trj).toSec());
       }
     }
+
+    stop_mtx_.lock();
+    stop = stop_;
+    stop_mtx_.unlock();
+
     lp.sleep();
   }
 }
@@ -452,7 +465,11 @@ void ReplannerManager::collisionCheckThread()
   std::vector<PathPtr> other_paths_copy;
   moveit_msgs::GetPlanningScene ps_srv;
 
-  while (!stop_ && ros::ok())
+  stop_mtx_.lock();
+  bool stop = stop_;
+  stop_mtx_.unlock();
+
+  while (!stop && ros::ok())
   {
     ros::WallTime tic_tot = ros::WallTime::now();
 
@@ -530,6 +547,10 @@ void ReplannerManager::collisionCheckThread()
       ROS_WARN("t scn call %f, t check %f",(toc_pln_call-tic_pln_call).toSec(),(toc_check-tic_check).toSec());
     }
 
+    stop_mtx_.lock();
+    stop = stop_;
+    stop_mtx_.unlock();
+
     lp.sleep();
   }
 }
@@ -546,7 +567,10 @@ bool ReplannerManager::stop()
 
 bool ReplannerManager::cancel()
 {
+  stop_mtx_.lock();
   stop_ = true ;
+  stop_mtx_.unlock();
+
   return stop();
 }
 
@@ -675,7 +699,11 @@ void ReplannerManager::trajectoryExecutionThread()
 
   ros::Rate lp(trj_exec_thread_frequency_);
 
-  while(!stop_ && ros::ok())
+  stop_mtx_.lock()  ;
+  bool stop = stop_ ;
+  stop_mtx_.unlock();
+
+  while(!stop && ros::ok())
   {
     ros::WallTime tic_tot = ros::WallTime::now();
     real_time_ += dt_;
@@ -722,8 +750,12 @@ void ReplannerManager::trajectoryExecutionThread()
 
     if((point2project-goal_conf).norm()<goal_toll_)
     {
-      finished_ = true;
-      stop_     = true;
+      stop_mtx_.lock()  ;
+
+      finished_ = true  ;
+      stop_     = true  ;
+
+      stop_mtx_.unlock();
     }
 
     new_joint_state_unscaled_.position     = pnt_unscaled.positions ;
@@ -749,11 +781,18 @@ void ReplannerManager::trajectoryExecutionThread()
       ROS_INFO_STREAM("dur1: "<<duration1<<" dur2: "<<duration2<<" dur3: "<<duration3<<" dur4: "<<duration4);
     }
 
+    stop_mtx_.lock();
+    stop = stop_;
+    stop_mtx_.unlock();
+
     lp.sleep();
   }
 
-  ROS_ERROR("STOP");
+  stop_mtx_.lock();
   stop_ = true;
+  stop_mtx_.unlock();
+
+  ROS_ERROR("STOP");
 }
 
 void ReplannerManager::displayThread()
@@ -770,7 +809,11 @@ void ReplannerManager::displayThread()
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
 
-  while(!stop_ && ros::ok())
+  stop_mtx_.lock();
+  bool stop = stop_;
+  stop_mtx_.unlock();
+
+  while(!stop && ros::ok())
   {
     paths_mtx_.lock();
     pathplan::PathPtr current_path = current_path_->clone();
@@ -836,6 +879,10 @@ void ReplannerManager::displayThread()
 
     disp->defaultNodeSize();
 
+    stop_mtx_.lock();
+    stop = stop_;
+    stop_mtx_.unlock();
+
     lp.sleep();
   }
 }
@@ -850,7 +897,12 @@ void ReplannerManager::spawnObjects()
 
   bool object_spawned = false;
   bool second_object_spawned = false;
-  while (!stop_ && ros::ok())
+
+  stop_mtx_.lock();
+  bool stop = stop_;
+  stop_mtx_.unlock();
+
+  while (!stop && ros::ok())
   {
     // ////////////////////////////////////////////SPAWNING THE OBJECT/////////////////////////////////////////////
     if(real_time_>=2.0 && !second_object_spawned)
@@ -947,6 +999,10 @@ void ReplannerManager::spawnObjects()
       object_spawned = true;
       ROS_WARN("OBJECT SPAWNED");
     }
+
+    stop_mtx_.lock();
+    stop = stop_;
+    stop_mtx_.unlock();
 
     lp.sleep();
   }

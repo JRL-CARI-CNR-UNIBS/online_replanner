@@ -96,7 +96,7 @@ protected:
   std::mutex paths_mtx_    ;
   std::mutex scene_mtx_    ;
   std::mutex replanner_mtx_;
-
+  std::mutex stop_mtx_     ;
 
 //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> speed_ovr_sub_ ;
 //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_1_sub_;
@@ -142,17 +142,29 @@ public:
 
   bool finished()
   {
-    return finished_;
+    stop_mtx_.lock();
+    bool finished = finished_;
+    stop_mtx_.unlock();
+
+    return finished;
   }
 
   trajectory_msgs::JointTrajectoryPoint getJointTarget()
   {
-    return pnt_;
+    trj_mtx_.lock();
+    trajectory_msgs::JointTrajectoryPoint pnt = pnt_;
+    trj_mtx_.unlock();
+
+    return pnt;
   }
 
   trajectory_msgs::JointTrajectoryPoint getUnscaledJointTarget()
   {
-    return pnt_unscaled_;
+    trj_mtx_.lock();
+    trajectory_msgs::JointTrajectoryPoint pnt_unscaled = pnt_unscaled_;
+    trj_mtx_.unlock();
+
+    return pnt_unscaled;
   }
 
   bool run()                                                                                      ;

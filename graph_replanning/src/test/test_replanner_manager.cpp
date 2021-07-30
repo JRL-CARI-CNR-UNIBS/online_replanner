@@ -281,6 +281,8 @@ int main(int argc, char **argv)
     ROS_INFO("KILL JOINT STATE PUBLISHER");
     ros::Duration(5).sleep();
     replanner_manager->start();
+
+    ROS_WARN("FINISHED");
   }
 
   return 0;

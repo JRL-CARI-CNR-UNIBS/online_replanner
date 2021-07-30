@@ -129,9 +129,13 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
       if (idx % 10 == 0)
 
         if (id(gen) < stall_gen)
+        {
           opt_solver.setSampler(sampler);
+        }
         else
+        {
           opt_solver.setSampler(local_sampler);
+        }
 
       if (stall_gen >= max_stall_gen)
         break;
