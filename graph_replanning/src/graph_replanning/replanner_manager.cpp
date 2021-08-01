@@ -1,4 +1,4 @@
-#include "graph_replanning/replanner_manager.h"
+﻿#include "graph_replanning/replanner_manager.h"
 
 namespace pathplan
 {
@@ -585,7 +585,7 @@ bool ReplannerManager::run()
 
   display_thread_                   = std::thread(&ReplannerManager::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManager::spawnObjects              ,this);
-  ros::Duration(2).sleep()                                                                           ;
+//  ros::Duration(2).sleep()                                                                           ;
   replanning_thread_                = std::thread(&ReplannerManager::replanningThread          ,this);
   col_check_thread_                 = std::thread(&ReplannerManager::collisionCheckThread      ,this);
   trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
