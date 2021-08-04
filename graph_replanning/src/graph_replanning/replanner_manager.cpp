@@ -21,6 +21,8 @@ void ReplannerManager::setChainProperties(std::string &group_name, std::string &
   group_name_ = group_name;
   base_link_  = base_link ;
   last_link_  = last_link ;
+
+  ROS_INFO("Chain propierties set. Group name: %s, base link: %s, tool link: %s",group_name_.c_str(),base_link_.c_str(),last_link_.c_str());
 }
 
 void ReplannerManager::fromParam()
@@ -117,7 +119,9 @@ void ReplannerManager::attributeInitialization()
   if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene)           ) ROS_ERROR("unable to update planning scene");
   if (!planning_scn_replanning_->setPlanningSceneMsg(ps_srv.response.scene)) ROS_ERROR("unable to update planning scene");
 
+  ROS_INFO("QUA0");
   const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(group_name_);
+  ROS_INFO("QUA1");
   std::vector<std::string> joint_names                  = joint_model_group->getActiveJointModelNames()                ;
   unsigned int dof                                      = joint_names.size()                                           ;
 
