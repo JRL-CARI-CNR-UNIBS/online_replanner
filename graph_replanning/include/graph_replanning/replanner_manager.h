@@ -82,7 +82,6 @@ protected:
   trajectory_msgs::JointTrajectoryPoint     pnt_replan_              ;
   sensor_msgs::JointState                   new_joint_state_unscaled_;
   sensor_msgs::JointState                   new_joint_state_         ;
-  robot_state::RobotStatePtr                kinematic_state_         ;
 
   std::thread display_thread_   ;
   std::thread spawn_obj_thread_ ;

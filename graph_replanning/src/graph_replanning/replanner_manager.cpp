@@ -22,7 +22,7 @@ void ReplannerManager::setChainProperties(std::string &group_name, std::string &
   base_link_  = base_link ;
   last_link_  = last_link ;
 
-  ROS_INFO("Chain propierties set. Group name: %s, base link: %s, tool link: %s",group_name_.c_str(),base_link_.c_str(),last_link_.c_str());
+  ROS_INFO("Chain propierties set -> group name: %s, base link: %s, tool link: %s.",group_name_.c_str(),base_link_.c_str(),last_link_.c_str());
 }
 
 void ReplannerManager::fromParam()
@@ -107,20 +107,21 @@ void ReplannerManager::attributeInitialization()
   if(base_link_ .empty()) throw std::invalid_argument("base link not set" );
   if(last_link_ .empty()) throw std::invalid_argument("last link not set" );
 
-  moveit::planning_interface::MoveGroupInterface   move_group(group_name_)                                                  ;
   robot_model_loader::RobotModelLoader             robot_model_loader("robot_description")                                  ;
   robot_model::RobotModelPtr kinematic_model     = robot_model_loader.getModel()                                            ;
-  kinematic_state_                               = robot_state::RobotStatePtr (new robot_state::RobotState(kinematic_model));
   planning_scn_                                  = std::make_shared<planning_scene::PlanningScene>(kinematic_model)         ;
   planning_scn_replanning_                       = std::make_shared<planning_scene::PlanningScene>(kinematic_model)         ;
+
 
   moveit_msgs::GetPlanningScene ps_srv;
   if (!plannning_scene_client_.call(ps_srv)                                ) ROS_ERROR("call to srv not ok"             );
   if (!planning_scn_->setPlanningSceneMsg(ps_srv.response.scene)           ) ROS_ERROR("unable to update planning scene");
   if (!planning_scn_replanning_->setPlanningSceneMsg(ps_srv.response.scene)) ROS_ERROR("unable to update planning scene");
 
+  robot_state::RobotState state(planning_scn_->getCurrentState());
+
   ROS_INFO("QUA0");
-  const robot_state::JointModelGroup* joint_model_group = move_group.getCurrentState()->getJointModelGroup(group_name_);
+  const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
   ROS_INFO("QUA1");
   std::vector<std::string> joint_names                  = joint_model_group->getActiveJointModelNames()                ;
   unsigned int dof                                      = joint_names.size()                                           ;
@@ -203,24 +204,24 @@ void ReplannerManager::subscribeTopicsAndServices()
     scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1));
   }
 
-  target_pub_              = nh_.advertise<sensor_msgs::JointState>("/joint_target",1                               );
-  unscaled_target_pub_     = nh_.advertise<sensor_msgs::JointState>("/unscaled_joint_target",1                      );
-  time_pub_                = nh_.advertise<std_msgs::Float64>("/time_topic",1                                       );
-  current_norm_pub_        = nh_.advertise<std_msgs::Float64>("/current_norm_topic", 1000                           );
-  new_norm_pub_            = nh_.advertise<std_msgs::Float64>("/new_norm_topic", 1000                               );
-  time_replanning_pub_     = nh_.advertise<std_msgs::Float64>("/time_replanning_topic", 1000                        );
-  obs_current_norm_pub_    = nh_.advertise<std_msgs::Float64>("/obs_current_norm_topic", 1000                       );
-  obs_new_norm_pub_        = nh_.advertise<std_msgs::Float64>("/obs_new_norm_topic", 1000                           );
-  obs_time_replanning_pub_ = nh_.advertise<std_msgs::Float64>("/obs_time_replanning_topic", 1000                    );
-  plannning_scene_client_  = nh_.serviceClient<moveit_msgs::GetPlanningScene>("/get_planning_scene"                 );
-  start_log_               = nh_.serviceClient<std_srvs::Empty>("/start_log"                                        );
-  stop_log_                = nh_.serviceClient<std_srvs::Empty>("/stop_log"                                         );
-  add_obj_                 = nh_.serviceClient<object_loader_msgs::AddObjects>("/add_object_to_scene"               );
-  remove_obj_              = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene"       );
+  target_pub_              = nh_.advertise<sensor_msgs::JointState>              ("/joint_target",         1   );
+  unscaled_target_pub_     = nh_.advertise<sensor_msgs::JointState>              ("/unscaled_joint_target",1   );
+  time_pub_                = nh_.advertise<std_msgs::Float64>                    ("/time_topic",                     1   );
+  current_norm_pub_        = nh_.advertise<std_msgs::Float64>                    ("/current_norm_topic",             1000);
+  new_norm_pub_            = nh_.advertise<std_msgs::Float64>                    ("/new_norm_topic",                 1000);
+  time_replanning_pub_     = nh_.advertise<std_msgs::Float64>                    ("/time_replanning_topic",          1000);
+  obs_current_norm_pub_    = nh_.advertise<std_msgs::Float64>                    ("/obs_current_norm_topic",         1000);
+  obs_new_norm_pub_        = nh_.advertise<std_msgs::Float64>                    ("/obs_new_norm_topic",             1000);
+  obs_time_replanning_pub_ = nh_.advertise<std_msgs::Float64>                    ("/obs_time_replanning_topic",      1000);
+  plannning_scene_client_  = nh_.serviceClient<moveit_msgs::GetPlanningScene>    ("/get_planning_scene"                  );
+  start_log_               = nh_.serviceClient<std_srvs::Empty>                  ("/start_log"                           );
+  stop_log_                = nh_.serviceClient<std_srvs::Empty>                  ("/stop_log"                            );
+  add_obj_                 = nh_.serviceClient<object_loader_msgs::AddObjects>   ("/add_object_to_scene"                 );
+  remove_obj_              = nh_.serviceClient<object_loader_msgs::RemoveObjects>("/remove_object_from_scene"            );
 
-  if (!plannning_scene_client_.waitForExistence(ros::Duration(10))) throw std::invalid_argument("unable to connect to /get_planning_scene");
-  if (!add_obj_               .waitForExistence(ros::Duration(10))) ROS_ERROR("unable to connect to /add_object_to_scene"                 );
-  if (!remove_obj_            .waitForExistence(ros::Duration(10))) ROS_ERROR("unable to connect to /remove_object_to_scene"              );
+  if(!plannning_scene_client_.waitForExistence(ros::Duration(10))) throw std::invalid_argument("unable to connect to /get_planning_scene");
+  if(!add_obj_               .waitForExistence(ros::Duration(10))) ROS_ERROR("unable to connect to /add_object_to_scene"                 );
+  if(!remove_obj_            .waitForExistence(ros::Duration(10))) ROS_ERROR("unable to connect to /remove_object_to_scene"              );
 }
 
 void ReplannerManager::replanningThread()
@@ -589,7 +590,7 @@ bool ReplannerManager::run()
 
   display_thread_                   = std::thread(&ReplannerManager::displayThread             ,this);  //it must be the first one launched, otherwise the first paths will be not displayed in time
   if(spawn_objs_) spawn_obj_thread_ = std::thread(&ReplannerManager::spawnObjects              ,this);
-//  ros::Duration(2).sleep()                                                                           ;
+  ros::Duration(2).sleep()                                                                           ;
   replanning_thread_                = std::thread(&ReplannerManager::replanningThread          ,this);
   col_check_thread_                 = std::thread(&ReplannerManager::collisionCheckThread      ,this);
   trj_exec_thread_                  = std::thread(&ReplannerManager::trajectoryExecutionThread ,this);
