@@ -107,11 +107,10 @@ void ReplannerManager::attributeInitialization()
   if(base_link_ .empty()) throw std::invalid_argument("base link not set" );
   if(last_link_ .empty()) throw std::invalid_argument("last link not set" );
 
-  robot_model_loader::RobotModelLoader             robot_model_loader("robot_description")                                  ;
-  robot_model::RobotModelPtr kinematic_model     = robot_model_loader.getModel()                                            ;
-  planning_scn_                                  = std::make_shared<planning_scene::PlanningScene>(kinematic_model)         ;
-  planning_scn_replanning_                       = std::make_shared<planning_scene::PlanningScene>(kinematic_model)         ;
-
+  robot_model_loader::RobotModelLoader             robot_model_loader("robot_description")                         ;
+  robot_model::RobotModelPtr kinematic_model     = robot_model_loader.getModel()                                   ;
+  planning_scn_                                  = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
+  planning_scn_replanning_                       = std::make_shared<planning_scene::PlanningScene>(kinematic_model);
 
   moveit_msgs::GetPlanningScene ps_srv;
   if (!plannning_scene_client_.call(ps_srv)                                ) ROS_ERROR("call to srv not ok"             );
@@ -119,12 +118,9 @@ void ReplannerManager::attributeInitialization()
   if (!planning_scn_replanning_->setPlanningSceneMsg(ps_srv.response.scene)) ROS_ERROR("unable to update planning scene");
 
   robot_state::RobotState state(planning_scn_->getCurrentState());
-
-  ROS_INFO("QUA0");
-  const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_);
-  ROS_INFO("QUA1");
-  std::vector<std::string> joint_names                  = joint_model_group->getActiveJointModelNames()                ;
-  unsigned int dof                                      = joint_names.size()                                           ;
+  const robot_state::JointModelGroup* joint_model_group = state.getJointModelGroup(group_name_)        ;
+  std::vector<std::string> joint_names                  = joint_model_group->getActiveJointModelNames();
+  unsigned int dof                                      = joint_names.size()                           ;
 
   Eigen::VectorXd lb(dof);
   Eigen::VectorXd ub(dof);
@@ -143,8 +139,6 @@ void ReplannerManager::attributeInitialization()
 
   checker_thread_cc_           = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_, group_name_,5, checker_resol_           );
   checker_                     = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scn_replanning_, group_name_,5, checker_resol_);
-  //checker_thread_cc_         = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_, group_name_, checker_resol_                     );
-  //checker_                   = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scn_replanning_, group_name_, checker_resol_          );
 
   current_path_->setChecker(checker_);   //To synchronize path checker with the related one to the planning scene that will be used by the replanner, which will be different from the planning scene used by the collision checking thread
   for(const PathPtr &path:other_paths_) path->setChecker(checker_);
@@ -249,6 +243,8 @@ void ReplannerManager::replanningThread()
   bool stop = stop_;
   stop_mtx_.unlock();
 
+  PathPtr previous_path = current_path_->clone();
+
   while (!stop && ros::ok())
   {
     ros::WallTime tic_tot=ros::WallTime::now();
@@ -276,7 +272,9 @@ void ReplannerManager::replanningThread()
       replanner_mtx_.unlock();
 
       past_abscissa = abscissa;
+      ROS_INFO("Prima di projettare repl");
       projection= path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_configuration_replan,abscissa,past_abscissa,n_conn_replan);
+      ROS_INFO("Dopo aver proiettato repl");
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
@@ -300,6 +298,7 @@ void ReplannerManager::replanningThread()
         configuration_replan_ = current_configuration_;  //può essere che non venga trovata la repl conf e rimanga ferma per qualche ciclo, intanto la current conf va avanti, la supera e il replanned path partirà da questa e non includera la repl conf
         trj_mtx_.unlock();
       }
+
       replanner_->setCurrentConf(configuration_replan_);
       replanner_->setCurrentPath(current_path_copy);
       replanner_->setOtherPaths(other_paths_copy);
@@ -377,7 +376,7 @@ void ReplannerManager::replanningThread()
         ros::WallTime tic1 = ros::WallTime::now();
         replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
         ros::WallTime toc1 = ros::WallTime::now();
-        replanner_->simplifyReplannedPath(0.01);  //usa var locale e poi assegna a curr path
+//        replanner_->simplifyReplannedPath(0.01);  //usa var locale e poi assegna a curr path
         ros::WallTime toc2 = ros::WallTime::now();
 
         double duration1 = (toc1-tic1).toSec();
@@ -391,6 +390,7 @@ void ReplannerManager::replanningThread()
 
         ros::WallTime tic3 = ros::WallTime::now();
         paths_mtx_.lock();
+        previous_path = current_path_;
         current_path_ = replanner_->getReplannedPath();
         current_path_changed_ = true;  //to warn the collision check thread that the current path is changed
         paths_mtx_.unlock();
@@ -581,6 +581,9 @@ bool ReplannerManager::cancel()
 
 bool ReplannerManager::run()
 {
+  ros::AsyncSpinner spinner(4);
+  spinner.start();
+  
   attributeInitialization();
 
   target_pub_         .publish(new_joint_state_         );
@@ -634,6 +637,9 @@ bool ReplannerManager::start()
 
 bool ReplannerManager::startWithoutReplanning()
 {
+  ros::AsyncSpinner spinner(4);
+  spinner.start();
+
   attributeInitialization();
 
   start_log_.call(srv_log_);
@@ -748,7 +754,9 @@ void ReplannerManager::trajectoryExecutionThread()
     tic = ros::WallTime::now();
     trj_mtx_.lock();
     past_current_configuration = current_configuration_;
+    ROS_INFO("Prima di projettare trj");
     current_configuration_ = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
+    ROS_INFO("Dopo aver proiettato su trj");
     trj_mtx_.unlock();
     toc = ros::WallTime::now();
     duration4 = (toc-tic).toSec();
@@ -867,20 +875,20 @@ void ReplannerManager::displayThread()
     marker_color = {1.0,0.0,1.0,1.0};
     disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color);
 
-    //Eigen::VectorXd point2project(pnt.positions.size());
-    //for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
-    //node_id +=1;
-    //marker_color = {0.0,1.0,0.0,1.0};
-    //disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+    Eigen::VectorXd point2project(pnt.positions.size());
+    for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
+    node_id +=1;
+    marker_color = {0.0,1.0,0.0,1.0};
+    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     node_id +=1;
     marker_color = {0.0,0.0,0.0,1.0};
     disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
 
-    //for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
-    //node_id +=1;
-    //marker_color = {0.5,0.5,0.5,1.0};
-    //disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
+    node_id +=1;
+    marker_color = {0.5,0.5,0.5,1.0};
+    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     disp->defaultNodeSize();
 

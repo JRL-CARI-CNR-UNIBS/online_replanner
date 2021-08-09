@@ -136,7 +136,6 @@ int main(int argc, char **argv)
     Eigen::VectorXd goal_conf = Eigen::Map<Eigen::VectorXd>(stop_configuration.data(), stop_configuration.size());
 
     pathplan::MetricsPtr metrics = std::make_shared<pathplan::Metrics>();
-//    pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::MoveitCollisionChecker>(planning_scene, group_name, checker_resolution);
     pathplan::CollisionCheckerPtr checker = std::make_shared<pathplan::ParallelMoveitCollisionChecker>(planning_scene, group_name,5,checker_resolution);
 
     // ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,6 +210,7 @@ int main(int argc, char **argv)
 
     // //////////////////////////////////////PATH PLAN//////////////////////////////////////////////////////////////////////////
     pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scene,group_name);
+    checker->setPlanningSceneMsg(ps_srv.response.scene);
 
     std::vector<pathplan::PathPtr> path_vector;
 

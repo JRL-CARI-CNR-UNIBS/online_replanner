@@ -189,10 +189,16 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     }
     else
     {
+      ROS_INFO("QUA");
+
       ConnectionPtr conn = current_path_->getConnections().at(idx_path_start);
+
+      ROS_INFO("QUA1");
 
       int idx = idx_path_start;
       if(path_start->getConfiguration() == current_path_->getConnections().at(idx_path_start)->getChild()->getConfiguration()) idx = idx_path_start + 1;
+
+      ROS_INFO("QUA2");
 
       int j = 0;
       int j_save = -2;
@@ -207,26 +213,35 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
         j+=1;
       }
 
+      ROS_INFO("QUA3");
+
       bool add_conn = false;
       if(j_save != -2)
       {
+        ROS_INFO("QUA4");
         for(unsigned int i=j_save+1; i<path->getConnections().size();i++) path_connections.push_back(path->getConnections().at(i));
+
+        ROS_INFO("QUA5");
         for(unsigned int i=0; i<=j_save; i++) path->getConnections().at(i)->remove();
       }
       else
       {
+        ROS_INFO("QUA6");
         if((conn->getParent()->getConfiguration() == path_start->getConfiguration()) || (conn->getChild()->getConfiguration() == path_start->getConfiguration()))
         {
+          ROS_INFO("QUA7");
           node = path_start;
           path_connections = path->getConnections();
         }
         else
         {
+          ROS_INFO("QUA8");
           if(idx_current_conf == idx_path_start) node = current_node;
           else node = current_path_->getConnections().at(idx_path_start)->getChild();
           path_connections = path->getConnections();
           add_conn = true;
         }
+        ROS_INFO("QUA9");
       }
 
       bool connected = false;
@@ -651,24 +666,24 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
   //path_solver.setPath(connecting_path);
   //double opt_time = maxSolverTime(tic,tic_cycle);
 
-  ros::WallTime tic_simplify = ros::WallTime::now();
-  if(path->getConnections().at(0)->norm()<0.1)
-  {
-    //simplify solo della prima connessione
-  }
+//  ros::WallTime tic_simplify = ros::WallTime::now();
+//  if(path->getConnections().at(0)->norm()<0.1)
+//  {
+//    //simplify solo della prima connessione
+//  }
 
-  ros::WallTime toc_simplify = ros::WallTime::now();
+//  ros::WallTime toc_simplify = ros::WallTime::now();
 
 
-  if(max_time<=0.0) return;
-  ros::WallTime tic_opt = ros::WallTime::now();
-  path->warp(0.1,max_time);
-  ros::WallTime toc_opt = ros::WallTime::now();
+//  if(max_time<=0.0) return;
+//  ros::WallTime tic_opt = ros::WallTime::now();
+//  path->warp(0.1,max_time);
+//  ros::WallTime toc_opt = ros::WallTime::now();
 
-  if(pathSwitch_verbose_)
-  {
-    ROS_INFO_STREAM("max opt time: "<<max_time<<" used time: "<<(toc_opt-tic_opt).toSec());
-  }
+//  if(pathSwitch_verbose_)
+//  {
+//    ROS_INFO_STREAM("max opt time: "<<max_time<<" used time: "<<(toc_opt-tic_opt).toSec());
+//  }
 }
 
 bool Replanner::pathSwitch(const PathPtr &current_path,
