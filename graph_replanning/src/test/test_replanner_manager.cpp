@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 
     // //////////////////////////////////////PATH PLAN//////////////////////////////////////////////////////////////////////////
     pathplan::TrajectoryPtr trajectory = std::make_shared<pathplan::Trajectory>(nh,planning_scene,group_name);
-    checker->setPlanningSceneMsg(ps_srv.response.scene);
+//    checker->setPlanningSceneMsg(ps_srv.response.scene);
 
     std::vector<pathplan::PathPtr> path_vector;
 
