@@ -869,9 +869,9 @@ void ReplannerManager::displayThread()
       disp->displayPathAndWaypoints(other_paths.at(i),path_id,wp_id,"pathplan",marker_color);
     }
 
-    disp->changeNodeSize(marker_scale_sphere);
-    marker_color = {1.0,0.0,1.0,1.0};
-    disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color);
+//    disp->changeNodeSize(marker_scale_sphere);
+//    marker_color = {1.0,0.0,1.0,1.0};
+//    disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color);
 
     Eigen::VectorXd point2project(pnt.positions.size());
     for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
@@ -879,14 +879,14 @@ void ReplannerManager::displayThread()
     marker_color = {0.0,1.0,0.0,1.0};
     disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
-    node_id +=1;
-    marker_color = {0.0,0.0,0.0,1.0};
-    disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
+//    node_id +=1;
+//    marker_color = {0.0,0.0,0.0,1.0};
+//    disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
 
-    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
-    node_id +=1;
-    marker_color = {0.5,0.5,0.5,1.0};
-    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+//    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
+//    node_id +=1;
+//    marker_color = {0.5,0.5,0.5,1.0};
+//    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     disp->defaultNodeSize();
 
