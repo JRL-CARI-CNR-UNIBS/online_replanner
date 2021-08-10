@@ -272,9 +272,9 @@ void ReplannerManager::replanningThread()
       replanner_mtx_.unlock();
 
       past_abscissa = abscissa;
-      ROS_INFO("Prima di projettare repl");
-      projection= path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_configuration_replan,abscissa,past_abscissa,n_conn_replan);
-      ROS_INFO("Dopo aver proiettato repl");
+      projection = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_configuration_replan,n_conn_replan);
+//      projection = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_configuration_replan,abscissa,past_abscissa,n_conn_replan);
+
 
       replanner_mtx_.lock();
       configuration_replan_ = projection;
@@ -376,7 +376,7 @@ void ReplannerManager::replanningThread()
         ros::WallTime tic1 = ros::WallTime::now();
         replanner_->startReplannedPathFromNewCurrentConf(current_configuration_);
         ros::WallTime toc1 = ros::WallTime::now();
-//        replanner_->simplifyReplannedPath(0.01);  //usa var locale e poi assegna a curr path
+        replanner_->simplifyReplannedPath(0.01);  //usa var locale e poi assegna a curr path
         ros::WallTime toc2 = ros::WallTime::now();
 
         double duration1 = (toc1-tic1).toSec();
@@ -754,9 +754,7 @@ void ReplannerManager::trajectoryExecutionThread()
     tic = ros::WallTime::now();
     trj_mtx_.lock();
     past_current_configuration = current_configuration_;
-    ROS_INFO("Prima di projettare trj");
     current_configuration_ = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
-    ROS_INFO("Dopo aver proiettato su trj");
     trj_mtx_.unlock();
     toc = ros::WallTime::now();
     duration4 = (toc-tic).toSec();
