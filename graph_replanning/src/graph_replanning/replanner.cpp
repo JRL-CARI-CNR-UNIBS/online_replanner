@@ -694,11 +694,10 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
 
   //  ros::WallTime toc_simplify = ros::WallTime::now();
 
-
   //  if(max_time<=0.0) return;
-  //  ros::WallTime tic_opt = ros::WallTime::now();
-  //  path->warp(0.1,max_time);
-  //  ros::WallTime toc_opt = ros::WallTime::now();
+    ros::WallTime tic_opt = ros::WallTime::now();
+    path->warp(0.1,max_time);
+    ros::WallTime toc_opt = ros::WallTime::now();
 
   //  if(pathSwitch_verbose_)
   //  {
