@@ -41,6 +41,15 @@ Replanner::Replanner(Eigen::VectorXd& current_configuration,
 
 }
 
+Replanner::Replanner(Eigen::VectorXd& current_configuration,
+                     PathPtr& current_path,
+                     std::vector<PathPtr>& other_paths,
+                     const TreeSolverPtr &solver)
+{
+  assert(solver);
+  Replanner(current_configuration, current_path, other_paths, solver, solver->getMetrics(), solver->getChecker(), solver->getSampler()->getLB(), solver->getSampler()->getUB());
+}
+
 bool Replanner::checkPathValidity(const CollisionCheckerPtr &this_checker)
 {
   CollisionCheckerPtr checker = checker_;
