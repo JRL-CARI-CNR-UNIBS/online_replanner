@@ -31,16 +31,16 @@ Trajectory::Trajectory(const ros::NodeHandle &nh,
   moveit_utils_ = std::make_shared<MoveitUtils>(planning_scene,group_name);
 }
 
-PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::VectorXd& goal_conf, const TreeSolverPtr& solver, const bool& optimizePath)
+PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::VectorXd& goal_conf, const TreeSolverPtr& solver, const bool& optimizePath, const double &max_time)
 {
   NodePtr start_node = std::make_shared<Node>(start_conf);
   NodePtr goal_node = std::make_shared<Node>(goal_conf);
 
-  return computePath(start_node,goal_node,solver,optimizePath);
+  return computePath(start_node,goal_node,solver,optimizePath,max_time);
 }
 
 
-PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimizePath)
+PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimizePath, const double &max_time)
 {
   CollisionCheckerPtr checker = solver->getChecker();
   SamplerPtr sampler = solver->getSampler();
@@ -48,18 +48,15 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
   Eigen::VectorXd lb = sampler->getLB();
   Eigen::VectorXd ub = sampler->getUB();
 
-  solver->config(nh_);
-  solver->addStart(start_node);
-  solver->addGoal(goal_node);
-
   pathplan::PathPtr solution;
-  if (!solver->solve(solution, 10000))
+  bool success = solver->computePath(start_node,goal_node,nh_, solution, max_time, 10000);
+
+  if(!success)
   {
     ROS_INFO("No solutions found");
-    assert(0);
   }
 
-  if(optimizePath)
+  if(optimizePath && success)
   {
     pathplan::PathLocalOptimizer path_solver(checker, metrics);
     path_solver.config(nh_);

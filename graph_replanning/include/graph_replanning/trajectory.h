@@ -7,10 +7,12 @@
 #include <graph_core/graph/node.h>
 #include <graph_core/graph/path.h>
 #include <graph_core/graph/tree.h>
+#include <graph_core/solvers/rrt.h>
 #include <graph_core/solvers/rrt_connect.h>
 #include <graph_core/solvers/birrt.h>
 #include <graph_core/solvers/multigoal.h>
 #include <graph_core/solvers/rrt_star.h>
+#include <graph_core/solvers/anytime_rrt.h>
 #include <graph_core/solvers/path_solver.h>
 #include <graph_core/moveit_collision_checker.h>
 #include <graph_core/local_informed_sampler.h>
@@ -83,9 +85,9 @@ public:
   }
 
   // Compute a path and then optimizes it if optimizePath==1
-  PathPtr computePath(const NodePtr &start_node, const NodePtr &goal_node, const TreeSolverPtr& solver, const bool& optimizePath);
+  PathPtr computePath(const NodePtr &start_node, const NodePtr &goal_node, const TreeSolverPtr& solver, const bool& optimizePath = true, const double &max_time = std::numeric_limits<double>::infinity());
   //Note: everytime it is called, new nodes corresponding to start_conf and goal_conf are created
-  PathPtr computePath(const Eigen::VectorXd &start_conf, const Eigen::VectorXd &goal_conf, const TreeSolverPtr& solver, const bool& optimizePath);
+  PathPtr computePath(const Eigen::VectorXd &start_conf, const Eigen::VectorXd &goal_conf, const TreeSolverPtr& solver, const bool& optimizePath = true, const double &max_time = std::numeric_limits<double>::infinity());
 
   //To trasform a path to a RobotTrajectory with or without initial condition
   robot_trajectory::RobotTrajectoryPtr fromPath2Trj(const trajectory_msgs::JointTrajectoryPointPtr& pnt = NULL);

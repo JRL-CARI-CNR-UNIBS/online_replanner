@@ -236,8 +236,11 @@ int main(int argc, char **argv)
     for (unsigned int i =0; i<n_paths; i++)
     {
       pathplan::SamplerPtr sampler = std::make_shared<pathplan::InformedSampler>(start_conf, goal_conf, lb, ub);
-      pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
-      pathplan::PathPtr solution = trajectory.computePath(start_conf, goal_conf,solver,optimize_path);
+//      pathplan::BiRRTPtr solver = std::make_shared<pathplan::BiRRT>(metrics, checker, sampler);
+      pathplan::AnytimeRRTPtr solver = std::make_shared<pathplan::AnytimeRRT>(metrics, checker, sampler);
+      pathplan::PathPtr solution = trajectory.computePath(start_conf, goal_conf,solver,0,2.0);
+      ROS_INFO_STREAM("PATH COST: "<<solution->cost());
+//      pathplan::PathPtr solution = trajectory.computePath(start_conf, goal_conf,solver,optimize_path);
       path_vector.push_back(solution);
 
       std::vector<double> marker_color;
