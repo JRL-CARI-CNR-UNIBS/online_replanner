@@ -198,6 +198,7 @@ void ReplannerManager::subscribeTopicsAndServices()
     scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1));
   }
 
+  false_pub                = nh_.advertise<sensor_msgs::JointState>              ("/false_rplanning",         1   );
   target_pub_              = nh_.advertise<sensor_msgs::JointState>              ("/joint_target",         1   );
   unscaled_target_pub_     = nh_.advertise<sensor_msgs::JointState>              ("/unscaled_joint_target",1   );
   time_pub_                = nh_.advertise<std_msgs::Float64>                    ("/time_topic",                     1   );
@@ -221,6 +222,8 @@ void ReplannerManager::subscribeTopicsAndServices()
 void ReplannerManager::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
+
+  false_rep_ = 0;
 
   bool replan                               = true                                                                                 ;
   bool success                              = 0                                                                                    ;
@@ -305,6 +308,9 @@ void ReplannerManager::replanningThread()
 
       if(path_obstructed_)
       {
+        ROS_INFO("REPLAN OSTACOLO");
+        false_rep_+=1;
+
         replan_offset_ = (dt_replan_restricted_-dt_)*K_OFFSET;
         time_informedOnlineRepl = 0.90*dt_replan_restricted_;
         string_dt = " reduced dt";

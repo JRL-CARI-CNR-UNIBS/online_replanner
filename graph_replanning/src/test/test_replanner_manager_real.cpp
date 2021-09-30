@@ -121,7 +121,7 @@ int main(int argc, char **argv)
 
     ros::Duration(0.5).sleep();
     configuration_msgs::StartConfiguration srv_start_conf;
-    srv_start_conf.request.start_configuration="trj_tracker";
+    srv_start_conf.request.start_configuration="trajectory_tracking";
     srv_start_conf.request.strictness=1;
     configuration_client.call(srv_start_conf);
     ros::Duration(2).sleep();
@@ -172,7 +172,7 @@ int main(int argc, char **argv)
       ros::Duration(0.2).sleep();
     }
 
-    srv_start_conf.request.start_configuration="feedforward";
+    srv_start_conf.request.start_configuration="ctrl";
     srv_start_conf.request.strictness=1;
     configuration_client.call(srv_start_conf);
     ros::Duration(2).sleep();
@@ -335,13 +335,16 @@ int main(int argc, char **argv)
 
     pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
 
-
     sound_msg.sound=3;
     sound_pub.publish(sound_msg);
+
+    ROS_WARN("STARTING WITH SKELETON");
+    ros::Duration(10).sleep();
 
     for (int iiii=0;iiii<5;iiii++)
       ROS_INFO("ENTER!");
     ros::Duration(10).sleep();
+
     sound_msg.sound=4;
     sound_pub.publish(sound_msg);
 
@@ -352,21 +355,18 @@ int main(int argc, char **argv)
     time_msg.data=(t1-t0).toSec();
     time_pub.publish(time_msg);
 
-
-
     if(!get_real_start_pos)
     {
       // ////////////////////////////////////////////////////////////////////////
       for (int iiii=0;iiii<5;iiii++)
-        ROS_INFO("CHANGE TO FIXED AREA SAFETY!");
+        ROS_INFO("CHANGE TO CUBE!");
       sound_msg.sound=2;
       sound_pub.publish(sound_msg);
       ros::Duration(10).sleep();
 
+      ROS_WARN("STARTING WITH CUBE");
 
-      ROS_WARN("STARTING WITHOUT REPLANNING");
-
-      srv_start_conf.request.start_configuration="trj_tracker";
+      srv_start_conf.request.start_configuration="trajectory_tracking";
       srv_start_conf.request.strictness=1;
       configuration_client.call(srv_start_conf);
       ros::Duration(2).sleep();
@@ -390,7 +390,7 @@ int main(int argc, char **argv)
       }
       ros::Duration(0.2).sleep();
 
-      srv_start_conf.request.start_configuration="feedforward";
+      srv_start_conf.request.start_configuration="ctrl";
       srv_start_conf.request.strictness=1;
       configuration_client.call(srv_start_conf);
       ros::Duration(2).sleep();
@@ -418,7 +418,7 @@ int main(int argc, char **argv)
       sound_pub.publish(sound_msg);
 
       ros::WallTime t2=ros::WallTime::now();
-      replanner_manager->startWithoutReplanning();
+      replanner_manager->start();
       ros::WallTime t3=ros::WallTime::now();
       std_msgs::Float64 time_msg_areas;
       time_msg_areas.data=(t3-t2).toSec();

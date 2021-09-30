@@ -57,6 +57,7 @@ protected:
   int    n_conn_                         ;
   int    pos_closest_obs_from_goal_repl_ ;
   int    pos_closest_obs_from_goal_check_;
+  int    false_rep_;
 
   double real_time_                  ;
   double t_                          ;
@@ -104,6 +105,7 @@ protected:
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
 
+  ros::Publisher false_pub       ;
   ros::Publisher current_norm_pub_       ;
   ros::Publisher new_norm_pub_           ;
   ros::Publisher time_replanning_pub_    ;
