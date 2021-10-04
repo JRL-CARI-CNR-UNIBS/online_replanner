@@ -14,9 +14,9 @@
         type="test_replanner_manager_real"
         output="screen" >
 
-<remap from="joint_target" to="/manipulator/joint_target"/>
+<!-- <remap from="joint_target" to="/manipulator/joint_target"/> -->
 <!--<remap from="unscaled_joint_target" to="/ur10e_hw/thor_prefilter_planner/unscaled_joint_target/joint_states"/>-->
-<!--<remap from="joint_target" to="joint_states"/>-->
+<remap from="ur10/joint_target" to="joint_target"/>
     </node>
 
 </launch>

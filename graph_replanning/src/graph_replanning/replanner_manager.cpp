@@ -10,8 +10,8 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
   other_paths_  = other_paths ;
   nh_           = nh          ;
 
-  subscribeTopicsAndServices();
   fromParam();
+  subscribeTopicsAndServices();
 }
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,6 +58,7 @@ void ReplannerManager::fromParam()
     read_safe_scaling_ = false;
   }
 
+
   if(read_safe_scaling_)
   {
     if(!nh_.getParam("overrides",scaling_topics_names_))
@@ -71,6 +72,7 @@ void ReplannerManager::fromParam()
       scaling_topics_names_.push_back("/safe_ovr_2");
     }
   }
+
 
   if(!nh_.getParam("group_name", group_name_)) ROS_ERROR("group_name not set, maybe set later with setChainProperties(..)?");
   if(!nh_.getParam("base_link",  base_link_ )) ROS_ERROR("base_link  not set, maybe set later with setChainProperties(..)?");
@@ -102,6 +104,7 @@ void ReplannerManager::attributeInitialization()
   replanning_thread_frequency_     = 1/dt_replan_restricted_             ;
   pos_closest_obs_from_goal_check_ = -1                                  ;
   pos_closest_obs_from_goal_repl_  = pos_closest_obs_from_goal_check_    ;
+  global_override_                 = 1.0                                 ;
 
   if(group_name_.empty()) throw std::invalid_argument("group name not set");
   if(base_link_ .empty()) throw std::invalid_argument("base link not set" );
@@ -186,6 +189,23 @@ void ReplannerManager::attributeInitialization()
   new_joint_state_unscaled_.header.stamp    = ros::Time::now()                ;
 }
 
+void ReplannerManager::overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name)
+{
+  double ovr;
+  if (msg->data>100)
+    ovr=1.0;
+  else if (msg->data<0)
+    ovr=0.0;
+  else
+    ovr=msg->data*0.01;
+  overrides_.at(override_name)=ovr;
+  double global_override=1;
+  for (const std::pair<std::string,double>& p: overrides_)
+    global_override *= p.second;
+  global_override_   = global_override;
+}
+
+
 void ReplannerManager::subscribeTopicsAndServices()
 {
 //  speed_ovr_sub_           = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/speed_ovr",1 );
@@ -195,10 +215,14 @@ void ReplannerManager::subscribeTopicsAndServices()
   scaling_topics_vector_.clear();
   for(const std::string &scaling_topic_name : scaling_topics_names_)
   {
-    scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1));
+    auto cb=boost::bind(&ReplannerManager::overrideCallback,this,_1,scaling_topic_name);
+    scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1,cb));
+
+    overrides_.insert(std::pair<std::string,double>(scaling_topic_name,1.0));
+    ROS_FATAL("subscribe topic %s",scaling_topic_name.c_str());
   }
 
-  false_pub                = nh_.advertise<sensor_msgs::JointState>              ("/false_rplanning",         1   );
+  false_pub                = nh_.advertise<sensor_msgs::JointState>              ("/false_replanning",         1   );
   target_pub_              = nh_.advertise<sensor_msgs::JointState>              ("/joint_target",         1   );
   unscaled_target_pub_     = nh_.advertise<sensor_msgs::JointState>              ("/unscaled_joint_target",1   );
   time_pub_                = nh_.advertise<std_msgs::Float64>                    ("/time_topic",                     1   );
@@ -222,8 +246,6 @@ void ReplannerManager::subscribeTopicsAndServices()
 void ReplannerManager::replanningThread()
 {
   ros::Rate lp(replanning_thread_frequency_);
-
-  false_rep_ = 0;
 
   bool replan                               = true                                                                                 ;
   bool success                              = 0                                                                                    ;
@@ -298,7 +320,7 @@ void ReplannerManager::replanningThread()
       if(current_path_copy->findConnection(configuration_replan_) == NULL)
       {
         trj_mtx_.lock();
-        configuration_replan_ = current_configuration_;  //può essere che non venga trovata la repl conf e rimanga ferma per qualche ciclo, intanto la current conf va avanti, la supera e il replanned path partirà da questa e non includera la repl conf
+        configuration_replan_ = current_configuration_;  //può essere che non venga trovata la repl conf e rimanga ferma per lche ciclo, intanto la current conf va avanti, la supera e il replanned path partirà da questa e non includera la repl conf
         trj_mtx_.unlock();
       }
 
@@ -308,21 +330,18 @@ void ReplannerManager::replanningThread()
 
       if(path_obstructed_)
       {
-        ROS_INFO("REPLAN OSTACOLO");
-        false_rep_+=1;
-
         replan_offset_ = (dt_replan_restricted_-dt_)*K_OFFSET;
         time_informedOnlineRepl = 0.90*dt_replan_restricted_;
         string_dt = " reduced dt";
         computing_avoiding_path_ = true;
-        replan_relaxed_ = true;
+        replan_relaxed_ = false;
       }
       else
       {
         replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
         time_informedOnlineRepl = 0.90*dt_replan_relaxed_;
         string_dt = " relaxed dt";
-        replan_relaxed_ = false;
+        replan_relaxed_ = true;
       }
 
       if(old_path_obstructed != path_obstructed_)
@@ -342,6 +361,8 @@ void ReplannerManager::replanningThread()
       success =  replanner_->informedOnlineReplanning(time_informedOnlineRepl);
       ros::WallTime toc_rep=ros::WallTime::now();
       replanning_ = false;
+
+      if(success && string_dt == " reduced dt")false_rep_+=1;
 
       planning_mtx_.unlock();
 
@@ -609,6 +630,8 @@ bool ReplannerManager::run()
 
 bool ReplannerManager::start()
 {
+  false_rep_ = 0;
+
   start_log_.call(srv_log_);
 
   run();
@@ -689,16 +712,7 @@ bool ReplannerManager::startWithoutReplanning()
 
 double ReplannerManager::readScalingTopics()
 {
-  double total_scaling = 1.0;
-  for(auto &scaling_topic:scaling_topics_vector_)
-  {
-    double scaling = (double) scaling_topic->getData().data/100;
-    if(scaling>1.0) scaling = 1.0;
-    else if(scaling<0.0) scaling = 0.0;
-
-    total_scaling *= scaling;
-  }
-  return total_scaling;
+  return global_override_;
 }
 
 
@@ -734,7 +748,7 @@ void ReplannerManager::trajectoryExecutionThread()
     double scaling = 1.0;
     if(read_safe_scaling_) scaling = readScalingTopics(); //scaling = ((double) speed_ovr_sub_->getData().data/100.0)*((double) safe_ovr_1_sub_->getData().data/100.0)*((double) safe_ovr_2_sub_->getData().data/100);
     else                   scaling = scaling_from_param_;
-
+    ROS_FATAL_THROTTLE(0.1,"SCALING = %f",scaling);
     t_+= scaling*dt_;
 
     toc = ros::WallTime::now();
@@ -814,14 +828,14 @@ void ReplannerManager::trajectoryExecutionThread()
 
 void ReplannerManager::displayThread()
 {
-  pathplan::DisplayPtr disp = std::make_shared<pathplan::Display>(planning_scn_,group_name_,last_link_);
+  disp_ = std::make_shared<pathplan::Display>(planning_scn_,group_name_,last_link_);
   ros::Duration(0.5).sleep();
 
   std::vector<double> marker_color;
   std::vector<double> marker_scale;
   std::vector<double> marker_scale_sphere(3,0.02);
 
-  disp->clearMarkers();
+  disp_->clearMarkers();
 
   double display_thread_frequency = 0.75*trj_exec_thread_frequency_;
   ros::Rate lp(display_thread_frequency);
@@ -853,9 +867,9 @@ void ReplannerManager::displayThread()
 
     marker_scale = {0.01,0.01,0.01};
     marker_color =  {1.0,1.0,0.0,1.0};
-    disp->changeConnectionSize(marker_scale);
-    disp->displayPathAndWaypoints(current_path,path_id,wp_id,"pathplan",marker_color);
-    disp->defaultConnectionSize();
+    disp_->changeConnectionSize(marker_scale);
+    disp_->displayPathAndWaypoints(current_path,path_id,wp_id,"pathplan",marker_color);
+    disp_->defaultConnectionSize();
 
     for(unsigned int i=0; i<other_paths.size();i++)
     {
@@ -872,7 +886,7 @@ void ReplannerManager::displayThread()
 
       path_id += 1;
       wp_id += 1000;
-      disp->displayPathAndWaypoints(other_paths.at(i),path_id,wp_id,"pathplan",marker_color);
+      disp_->displayPathAndWaypoints(other_paths.at(i),path_id,wp_id,"pathplan",marker_color);
     }
 
 //    disp->changeNodeSize(marker_scale_sphere);
@@ -883,7 +897,7 @@ void ReplannerManager::displayThread()
     for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
     node_id +=1;
     marker_color = {0.0,1.0,0.0,1.0};
-    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+    disp_->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
 //    node_id +=1;
 //    marker_color = {0.0,0.0,0.0,1.0};
@@ -894,7 +908,7 @@ void ReplannerManager::displayThread()
 //    marker_color = {0.5,0.5,0.5,1.0};
 //    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
-    disp->defaultNodeSize();
+    disp_->defaultNodeSize();
 
     stop_mtx_.lock();
     stop = stop_;

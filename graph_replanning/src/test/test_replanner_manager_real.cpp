@@ -23,6 +23,11 @@ int main(int argc, char **argv)
   ros::Publisher time_pub_areas=nh.advertise<std_msgs::Float64>("exec_time_areas",1);
   ros::Publisher sound_pub=nh.advertise<sound_play::SoundRequest>("/robotsound",1);
 
+  int false_rep_skeleton = 0;
+  int false_rep_cubo = 0;
+  int somma_cubo = 0;
+  int somma_skeleton = 0;
+
   sound_play::SoundRequest sound_msg;
   sound_msg.command=1;
   sound_msg.volume=1.0;
@@ -112,6 +117,8 @@ int main(int argc, char **argv)
     ROS_ERROR("checker_resolution not set, set 0.05");
     checker_resolution = 0.05;
   }
+
+  pathplan::ReplannerManagerPtr replanner_manager;
 
   for(int n_iter = init_test; n_iter<end_test; n_iter++)
   {
@@ -333,13 +340,13 @@ int main(int argc, char **argv)
       first=false;
     }
 
-    pathplan::ReplannerManagerPtr replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
+    replanner_manager = std::make_shared<pathplan::ReplannerManager>(current_path, other_paths, nh);
 
     sound_msg.sound=3;
     sound_pub.publish(sound_msg);
 
     ROS_WARN("STARTING WITH SKELETON");
-    ros::Duration(10).sleep();
+    ros::Duration(5).sleep();
 
     for (int iiii=0;iiii<5;iiii++)
       ROS_INFO("ENTER!");
@@ -351,6 +358,10 @@ int main(int argc, char **argv)
     ros::WallTime t0=ros::WallTime::now();
     replanner_manager->start();
     ros::WallTime t1=ros::WallTime::now();
+
+    false_rep_skeleton = replanner_manager->getFalseRepl();
+    somma_skeleton += false_rep_skeleton;
+
     std_msgs::Float64 time_msg;
     time_msg.data=(t1-t0).toSec();
     time_pub.publish(time_msg);
@@ -362,7 +373,7 @@ int main(int argc, char **argv)
         ROS_INFO("CHANGE TO CUBE!");
       sound_msg.sound=2;
       sound_pub.publish(sound_msg);
-      ros::Duration(10).sleep();
+      ros::Duration(5).sleep();
 
       ROS_WARN("STARTING WITH CUBE");
 
@@ -420,6 +431,10 @@ int main(int argc, char **argv)
       ros::WallTime t2=ros::WallTime::now();
       replanner_manager->start();
       ros::WallTime t3=ros::WallTime::now();
+
+      false_rep_cubo = replanner_manager->getFalseRepl();
+      somma_cubo += false_rep_cubo;
+
       std_msgs::Float64 time_msg_areas;
       time_msg_areas.data=(t3-t2).toSec();
       time_pub_areas.publish(time_msg_areas);
@@ -434,7 +449,14 @@ int main(int argc, char **argv)
     }
 
 
+    ROS_ERROR_STREAM("FALSI POSITIVI SKELETON: "<<(false_rep_skeleton-1));
+    ROS_ERROR_STREAM("FALSI POSITIVI CUBO: "<<(false_rep_cubo-1));
   }
+
+  ROS_ERROR_STREAM("FALSI POSITIVI TOT SKELETON: "<<(somma_skeleton-end_test));
+  ROS_ERROR_STREAM("FALSI POSITIVI TOT CUBO: "<<(somma_cubo-end_test));
+
+  replanner_manager->getDisp()->clearMarkers();
 
   return 0;
 }

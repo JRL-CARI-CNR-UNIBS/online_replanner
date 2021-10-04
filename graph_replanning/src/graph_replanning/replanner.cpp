@@ -111,22 +111,17 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     }
   }
 
-  ROS_INFO("QUI0");
   int idx_current_conf, idx_path_start;
   double abscissa_current_conf = current_path_->curvilinearAbscissaOfPoint(configuration,idx_current_conf);
-  ROS_INFO("QUI1");
 
   double abscissa_path_start = current_path_->curvilinearAbscissaOfPoint(path_start->getConfiguration(),idx_path_start);
-  ROS_INFO("QUI2");
 
   if(abscissa_current_conf == abscissa_path_start)
   {
-    ROS_INFO("QUI22");
     return;  //the start of the replanned path is the current configuration
   }
   else if(abscissa_current_conf < abscissa_path_start)  //the replanned path starts from a position after the current one
   {
-    ROS_INFO("QUI23");
     if(idx_current_conf == idx_path_start)
     {
       //Directly connect the current configuration with the start of the replanned path
@@ -139,10 +134,8 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     }
     if(idx_current_conf < idx_path_start)
     {
-      ROS_INFO("QUI3");
 
       NodePtr child = current_path_->getConnections().at(idx_current_conf)->getChild();
-      ROS_INFO("QUI4");
 
       if(child->getConfiguration() != configuration)
       {
@@ -184,14 +177,12 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
   }
   else //the replanned path starts from a position before the current configuration
   {
-    ROS_INFO("QUI5");
 
     pathplan::NodePtr node;
 
     int idx_conn;
     if(path->findConnection(configuration,idx_conn) != NULL)
     {
-      ROS_INFO("QUI6");
       node = path->getConnections().at(idx_conn)->getChild();
 
       if((path->getConnections().size()-1) > idx_conn)
@@ -210,24 +201,18 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
         connections.push_back(conn);
       }
 
-      ROS_INFO("QUI7");
       if((path->getConnections().size()-1) > idx_conn) connections.insert(connections.end(),path_connections.begin(),path_connections.end());
-      ROS_INFO("QUI8");
 
       path->setConnections(connections);
     }
     else
     {
-      ROS_INFO("QUA");
 
       ConnectionPtr conn = current_path_->getConnections().at(idx_path_start);
 
-      ROS_INFO("QUA1");
 
       int idx = idx_path_start;
       if(path_start->getConfiguration() == current_path_->getConnections().at(idx_path_start)->getChild()->getConfiguration()) idx = idx_path_start + 1;
-
-      ROS_INFO("QUA2");
 
       int j = 0;
       int j_save = -2;
@@ -242,35 +227,27 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
         j+=1;
       }
 
-      ROS_INFO("QUA3");
-
       bool add_conn = false;
       if(j_save != -2)
       {
-        ROS_INFO("QUA4");
         for(unsigned int i=j_save+1; i<path->getConnections().size();i++) path_connections.push_back(path->getConnections().at(i));
 
-        ROS_INFO("QUA5");
         for(unsigned int i=0; i<=j_save; i++) path->getConnections().at(i)->remove();
       }
       else
       {
-        ROS_INFO("QUA6");
         if((conn->getParent()->getConfiguration() == path_start->getConfiguration()) || (conn->getChild()->getConfiguration() == path_start->getConfiguration()))
         {
-          ROS_INFO("QUA7");
           node = path_start;
           path_connections = path->getConnections();
         }
         else
         {
-          ROS_INFO("QUA8");
           if(idx_current_conf == idx_path_start) node = current_node;
           else node = current_path_->getConnections().at(idx_path_start)->getChild();
           path_connections = path->getConnections();
           add_conn = true;
         }
-        ROS_INFO("QUA9");
       }
 
       bool connected = false;
