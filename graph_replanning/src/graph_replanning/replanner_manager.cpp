@@ -309,14 +309,13 @@ void ReplannerManager::replanningThread()
         time_informedOnlineRepl = 0.90*dt_replan_restricted_;
         string_dt = " reduced dt";
         computing_avoiding_path_ = true;
-        replan_relaxed_ = true;
-      }
+        replan_relaxed_ = false; //controlla
       else
       {
         replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
         time_informedOnlineRepl = 0.90*dt_replan_relaxed_;
         string_dt = " relaxed dt";
-        replan_relaxed_ = false;
+        replan_relaxed_ = true;  //controlla
       }
 
       if(old_path_obstructed != path_obstructed_)
