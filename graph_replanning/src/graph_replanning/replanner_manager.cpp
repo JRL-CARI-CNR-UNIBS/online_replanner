@@ -200,7 +200,10 @@ void ReplannerManager::overrideCallback(const std_msgs::Int64ConstPtr& msg, cons
   double global_override=1;
   for (const std::pair<std::string,double>& p: overrides_)
     global_override *= p.second;
+
+  ovr_mtx_.lock();
   global_override_   = global_override;
+  ovr_mtx_.unlock();
 }
 
 void ReplannerManager::subscribeTopicsAndServices()
@@ -704,9 +707,12 @@ bool ReplannerManager::startWithoutReplanning()
 
 double ReplannerManager::readScalingTopics()
 {
-  return global_override_;
-}
+  ovr_mtx_.lock();
+  double ovr = global_override_;
+  ovr_mtx_.unlock();
 
+  return ovr;
+}
 
 void ReplannerManager::trajectoryExecutionThread()
 {

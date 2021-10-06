@@ -96,6 +96,7 @@ protected:
   std::mutex scene_mtx_    ;
   std::mutex replanner_mtx_;
   std::mutex stop_mtx_     ;
+  std::mutex ovr_mtx_      ;
 
   //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> speed_ovr_sub_ ;
   //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_1_sub_;
