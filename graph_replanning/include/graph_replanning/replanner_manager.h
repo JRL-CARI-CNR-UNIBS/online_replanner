@@ -97,12 +97,14 @@ protected:
   std::mutex replanner_mtx_;
   std::mutex stop_mtx_     ;
 
-//  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> speed_ovr_sub_ ;
-//  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_1_sub_;
-//  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_2_sub_;
+  //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> speed_ovr_sub_ ;
+  //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_1_sub_;
+  //  std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>> safe_ovr_2_sub_;
 
   std::vector<std::string>                                                        scaling_topics_names_ ;
   std::vector<std::shared_ptr<ros_helper::SubscriptionNotifier<std_msgs::Int64>>> scaling_topics_vector_;
+  std::map<std::string,double> overrides_;
+  double global_override_;
 
   ros::Publisher current_norm_pub_       ;
   ros::Publisher new_norm_pub_           ;
@@ -131,6 +133,7 @@ protected:
   void spawnObjects()              ;
   void trajectoryExecutionThread() ;
   double readScalingTopics()       ;
+  void overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name);
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

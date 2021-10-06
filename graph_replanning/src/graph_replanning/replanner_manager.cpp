@@ -10,8 +10,8 @@ ReplannerManager::ReplannerManager(PathPtr &current_path,
   other_paths_  = other_paths ;
   nh_           = nh          ;
 
-  subscribeTopicsAndServices();
   fromParam();
+  subscribeTopicsAndServices();
 }
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,6 +102,7 @@ void ReplannerManager::attributeInitialization()
   replanning_thread_frequency_     = 1/dt_replan_restricted_             ;
   pos_closest_obs_from_goal_check_ = -1                                  ;
   pos_closest_obs_from_goal_repl_  = pos_closest_obs_from_goal_check_    ;
+  global_override_                 = 1.0                                 ;
 
   if(group_name_.empty()) throw std::invalid_argument("group name not set");
   if(base_link_ .empty()) throw std::invalid_argument("base link not set" );
@@ -186,16 +187,36 @@ void ReplannerManager::attributeInitialization()
   new_joint_state_unscaled_.header.stamp    = ros::Time::now()                ;
 }
 
+void ReplannerManager::overrideCallback(const std_msgs::Int64ConstPtr& msg, const std::string& override_name)
+{
+  double ovr;
+  if (msg->data>100)
+    ovr=1.0;
+  else if (msg->data<0)
+    ovr=0.0;
+  else
+    ovr=msg->data*0.01;
+  overrides_.at(override_name)=ovr;
+  double global_override=1;
+  for (const std::pair<std::string,double>& p: overrides_)
+    global_override *= p.second;
+  global_override_   = global_override;
+}
+
 void ReplannerManager::subscribeTopicsAndServices()
 {
-//  speed_ovr_sub_           = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/speed_ovr",1 );
-//  safe_ovr_1_sub_          = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_1",1);
-//  safe_ovr_2_sub_          = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_2",1);
+  //  speed_ovr_sub_           = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/speed_ovr",1 );
+  //  safe_ovr_1_sub_          = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_1",1);
+  //  safe_ovr_2_sub_          = std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,"/safe_ovr_2",1);
 
   scaling_topics_vector_.clear();
   for(const std::string &scaling_topic_name : scaling_topics_names_)
   {
-    scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1));
+    auto cb=boost::bind(&ReplannerManager::overrideCallback,this,_1,scaling_topic_name);
+    scaling_topics_vector_.push_back(std::make_shared<ros_helper::SubscriptionNotifier<std_msgs::Int64>>(nh_,scaling_topic_name,1,cb));
+
+    overrides_.insert(std::pair<std::string,double>(scaling_topic_name,1.0));
+    ROS_FATAL("subscribe topic %s",scaling_topic_name.c_str());
   }
 
   target_pub_              = nh_.advertise<sensor_msgs::JointState>              ("/joint_target",         1   );
@@ -273,7 +294,7 @@ void ReplannerManager::replanningThread()
 
       past_abscissa = abscissa;
       projection = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_configuration_replan,n_conn_replan);
-//      projection = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_configuration_replan,abscissa,past_abscissa,n_conn_replan);
+      //      projection = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_configuration_replan,abscissa,past_abscissa,n_conn_replan);
 
 
       replanner_mtx_.lock();
@@ -310,6 +331,7 @@ void ReplannerManager::replanningThread()
         string_dt = " reduced dt";
         computing_avoiding_path_ = true;
         replan_relaxed_ = false; //controlla
+      }
       else
       {
         replan_offset_ = (dt_replan_relaxed_-dt_)*K_OFFSET;
@@ -582,7 +604,7 @@ bool ReplannerManager::run()
 {
   ros::AsyncSpinner spinner(4);
   spinner.start();
-  
+
   attributeInitialization();
 
   target_pub_         .publish(new_joint_state_         );
@@ -682,16 +704,7 @@ bool ReplannerManager::startWithoutReplanning()
 
 double ReplannerManager::readScalingTopics()
 {
-  double total_scaling = 1.0;
-  for(auto &scaling_topic:scaling_topics_vector_)
-  {
-    double scaling = (double) scaling_topic->getData().data/100;
-    if(scaling>1.0) scaling = 1.0;
-    else if(scaling<0.0) scaling = 0.0;
-
-    total_scaling *= scaling;
-  }
-  return total_scaling;
+  return global_override_;
 }
 
 
@@ -868,9 +881,9 @@ void ReplannerManager::displayThread()
       disp->displayPathAndWaypoints(other_paths.at(i),path_id,wp_id,"pathplan",marker_color);
     }
 
-//    disp->changeNodeSize(marker_scale_sphere);
-//    marker_color = {1.0,0.0,1.0,1.0};
-//    disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color);
+    //    disp->changeNodeSize(marker_scale_sphere);
+    //    marker_color = {1.0,0.0,1.0,1.0};
+    //    disp->displayNode(std::make_shared<pathplan::Node>(current_configuration),node_id,"pathplan",marker_color);
 
     Eigen::VectorXd point2project(pnt.positions.size());
     for(unsigned int i=0; i<pnt.positions.size();i++) point2project[i] = pnt.positions.at(i);
@@ -878,14 +891,14 @@ void ReplannerManager::displayThread()
     marker_color = {0.0,1.0,0.0,1.0};
     disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
-//    node_id +=1;
-//    marker_color = {0.0,0.0,0.0,1.0};
-//    disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
+    //    node_id +=1;
+    //    marker_color = {0.0,0.0,0.0,1.0};
+    //    disp->displayNode(std::make_shared<pathplan::Node>(configuration_replan),node_id,"pathplan",marker_color);
 
-//    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
-//    node_id +=1;
-//    marker_color = {0.5,0.5,0.5,1.0};
-//    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
+    //    for(unsigned int i=0; i<pnt_replan.positions.size();i++) point2project[i] = pnt_replan.positions.at(i);
+    //    node_id +=1;
+    //    marker_color = {0.5,0.5,0.5,1.0};
+    //    disp->displayNode(std::make_shared<pathplan::Node>(point2project),node_id,"pathplan",marker_color);
 
     disp->defaultNodeSize();
 
