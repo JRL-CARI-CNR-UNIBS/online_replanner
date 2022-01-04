@@ -8,7 +8,6 @@
 #include <graph_core/graph/path.h>
 #include <graph_core/graph/tree.h>
 #include <graph_core/solvers/rrt.h>
-#include <graph_core/solvers/rrt_connect.h>
 #include <graph_core/solvers/birrt.h>
 #include <graph_core/solvers/multigoal.h>
 #include <graph_core/solvers/rrt_star.h>

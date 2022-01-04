@@ -332,7 +332,7 @@ void ReplannerManager::replanningThread()
         replan_offset_ = (dt_replan_restricted_-dt_)*K_OFFSET;
         time_informedOnlineRepl = 0.90*dt_replan_restricted_;
         string_dt = " reduced dt";
-        computing_avoiding_path_ = true;
+        computing_avoiding_path_ = true; //controlla
         replan_relaxed_ = false; //controlla
       }
       else
@@ -748,11 +748,6 @@ void ReplannerManager::trajectoryExecutionThread()
     else                   scaling = scaling_from_param_;
 
     t_+= scaling*dt_;
-
-    toc = ros::WallTime::now();
-    duration2 = (toc-tic).toSec();
-    tic = ros::WallTime::now();
-
     interpolator_.interpolate(ros::Duration(t_),pnt_         ,scaling);
     interpolator_.interpolate(ros::Duration(t_),pnt_unscaled_,1.0    );
 
