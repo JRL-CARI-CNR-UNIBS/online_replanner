@@ -51,6 +51,8 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
   pathplan::PathPtr solution;
   bool success = solver->computePath(start_node,goal_node,nh_, solution, max_time, 10000);
 
+  ROS_INFO_STREAM("MAX DIST: "<<solver->getMaxDistance());
+
   if(!success)
   {
     ROS_INFO("No solutions found");
@@ -78,9 +80,16 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     local_sampler->setCost(solution->cost());
 
     pathplan::RRTStar opt_solver(metrics, checker, local_sampler);
-    opt_solver.addStartTree(solver->getStartTree());
-    opt_solver.addGoal(goal_node);
-    opt_solver.config(nh_);
+    opt_solver.importFromSolver(solver);
+
+    ROS_INFO_STREAM("MAX DIST: "<<solver->getMaxDistance());
+    ROS_INFO_STREAM("OPT MAX DIST: "<<opt_solver.getMaxDistance());
+
+//    opt_solver.addStartTree(solver->getStartTree());
+//    ROS_WARN("PRIMA DI ADD GOAL");
+//    opt_solver.addGoal(goal_node);
+//    opt_solver.config(nh_);
+//    ROS_WARN("DOPO ADD GOAL");
 
     std::vector<pathplan::NodePtr> white_list;
     white_list.push_back(goal_node);
