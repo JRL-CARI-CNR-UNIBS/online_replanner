@@ -168,8 +168,8 @@ void ReplannerManager::attributeInitialization()
   Eigen::VectorXd point2project(dof);
   for(unsigned int i=0; i<pnt_replan_.positions.size();i++) point2project[i] = pnt_replan_.positions.at(i);
 
-  configuration_replan_  = current_path_->projectOnClosestConnection(point2project);
-  current_configuration_ = current_path_->getWaypoints().front()                   ;
+  configuration_replan_  = current_path_->projectOnPath(point2project);
+  current_configuration_ = current_path_->getWaypoints().front()      ;
 
   n_conn_ = 0;
 
@@ -296,7 +296,7 @@ void ReplannerManager::replanningThread()
       replanner_mtx_.unlock();
 
       past_abscissa = abscissa;
-      projection = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_configuration_replan,n_conn_replan);
+      projection = path2project_on->projectOnPath(point2project,past_configuration_replan);
       //      projection = path2project_on->projectOnClosestConnectionKeepingCurvilinearAbscissa(point2project,past_configuration_replan,abscissa,past_abscissa,n_conn_replan);
 
 
@@ -767,7 +767,7 @@ void ReplannerManager::trajectoryExecutionThread()
     tic = ros::WallTime::now();
     trj_mtx_.lock();
     past_current_configuration = current_configuration_;
-    current_configuration_ = path2project_on->projectOnClosestConnectionKeepingPastPrj(point2project,past_current_configuration,n_conn_);
+    current_configuration_ = path2project_on->projectOnPath(point2project,past_current_configuration);
     trj_mtx_.unlock();
     toc = ros::WallTime::now();
     duration4 = (toc-tic).toSec();
