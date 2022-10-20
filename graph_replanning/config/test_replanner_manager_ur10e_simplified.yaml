@@ -1,7 +1,7 @@
 test_name: "ur10e"
 group_name: "manipulator"
 base_link: "base_link"
-last_link: "ee_link"
+last_link: "tool0"
 dt_replan_restricted: 0.100
 dt_replan_relaxed: 0.150
 checker_resolution: 0.05

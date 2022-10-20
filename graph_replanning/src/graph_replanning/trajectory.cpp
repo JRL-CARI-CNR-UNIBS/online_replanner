@@ -31,16 +31,16 @@ Trajectory::Trajectory(const ros::NodeHandle &nh,
   moveit_utils_ = std::make_shared<MoveitUtils>(planning_scene,group_name);
 }
 
-PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::VectorXd& goal_conf, const TreeSolverPtr& solver, const bool& optimizePath)
+PathPtr Trajectory::computePath(const Eigen::VectorXd& start_conf, const Eigen::VectorXd& goal_conf, const TreeSolverPtr& solver, const bool& optimizePath, const double &max_time)
 {
   NodePtr start_node = std::make_shared<Node>(start_conf);
   NodePtr goal_node = std::make_shared<Node>(goal_conf);
 
-  return computePath(start_node,goal_node,solver,optimizePath);
+  return computePath(start_node,goal_node,solver,optimizePath,max_time);
 }
 
 
-PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimizePath)
+PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_node, const TreeSolverPtr& solver, const bool& optimizePath, const double &max_time)
 {
   CollisionCheckerPtr checker = solver->getChecker();
   SamplerPtr sampler = solver->getSampler();
@@ -48,18 +48,15 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
   Eigen::VectorXd lb = sampler->getLB();
   Eigen::VectorXd ub = sampler->getUB();
 
-  solver->config(nh_);
-  solver->addStart(start_node);
-  solver->addGoal(goal_node);
-
   pathplan::PathPtr solution;
-  if (!solver->solve(solution, 10000))
+  bool success = solver->computePath(start_node,goal_node,nh_, solution, max_time, 10000);
+
+  if(!success)
   {
     ROS_INFO("No solutions found");
-    assert(0);
   }
 
-  if(optimizePath)
+  if(optimizePath && success)
   {
     pathplan::PathLocalOptimizer path_solver(checker, metrics);
     path_solver.config(nh_);
@@ -81,9 +78,11 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
     local_sampler->setCost(solution->cost());
 
     pathplan::RRTStar opt_solver(metrics, checker, local_sampler);
-    opt_solver.addStartTree(solver->getStartTree());
-    opt_solver.addGoal(goal_node);
-    opt_solver.config(nh_);
+    opt_solver.importFromSolver(solver);
+
+//    opt_solver.addStartTree(solver->getStartTree());
+//    opt_solver.addGoal(goal_node);
+//    opt_solver.config(nh_);
 
     std::vector<pathplan::NodePtr> white_list;
     white_list.push_back(goal_node);
@@ -129,9 +128,13 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
       if (idx % 10 == 0)
 
         if (id(gen) < stall_gen)
+        {
           opt_solver.setSampler(sampler);
+        }
         else
+        {
           opt_solver.setSampler(local_sampler);
+        }
 
       if (stall_gen >= max_stall_gen)
         break;
@@ -147,10 +150,11 @@ PathPtr Trajectory::computePath(const NodePtr& start_node, const NodePtr& goal_n
 robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_msgs::JointTrajectoryPoint &pnt)
 {
   trajectory_msgs::JointTrajectoryPoint::Ptr pnt_ptr(new trajectory_msgs::JointTrajectoryPoint());
-  pnt_ptr->positions = pnt.positions;
-  pnt_ptr->velocities = pnt.velocities;
-  pnt_ptr->accelerations = pnt.accelerations;
-  pnt_ptr->effort = pnt.effort;
+
+  pnt_ptr->positions       = pnt.positions      ;
+  pnt_ptr->velocities      = pnt.velocities     ;
+  pnt_ptr->accelerations   = pnt.accelerations  ;
+  pnt_ptr->effort          = pnt.effort          ;
   pnt_ptr->time_from_start = pnt.time_from_start;
 
   return Trajectory::fromPath2Trj(pnt_ptr);
@@ -173,8 +177,8 @@ robot_trajectory::RobotTrajectoryPtr Trajectory::fromPath2Trj(const trajectory_m
   {
     if (j==0 && pnt != NULL)
     {
-      wp_state_vector.at(j).setJointGroupPositions(group_name_,pnt->positions);
-      wp_state_vector.at(j).setJointGroupVelocities(group_name_,pnt->velocities);
+      wp_state_vector.at(j).setJointGroupPositions    (group_name_,pnt->positions    );
+      wp_state_vector.at(j).setJointGroupVelocities   (group_name_,pnt->velocities   );
       wp_state_vector.at(j).setJointGroupAccelerations(group_name_,pnt->accelerations);
     }
     trj_->addSuffixWayPoint(wp_state_vector.at(j),0);

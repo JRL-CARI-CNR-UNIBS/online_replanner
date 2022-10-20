@@ -41,6 +41,15 @@ Replanner::Replanner(Eigen::VectorXd& current_configuration,
 
 }
 
+Replanner::Replanner(Eigen::VectorXd& current_configuration,
+                     PathPtr& current_path,
+                     std::vector<PathPtr>& other_paths,
+                     const TreeSolverPtr &solver)
+{
+  assert(solver);
+  Replanner(current_configuration, current_path, other_paths, solver, solver->getMetrics(), solver->getChecker(), solver->getSampler()->getLB(), solver->getSampler()->getUB());
+}
+
 bool Replanner::checkPathValidity(const CollisionCheckerPtr &this_checker)
 {
   CollisionCheckerPtr checker = checker_;
@@ -102,13 +111,22 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     }
   }
 
+  ROS_INFO("QUI0");
   int idx_current_conf, idx_path_start;
   double abscissa_current_conf = current_path_->curvilinearAbscissaOfPoint(configuration,idx_current_conf);
-  double abscissa_path_start = current_path_->curvilinearAbscissaOfPoint(path_start->getConfiguration(),idx_path_start);
+  ROS_INFO("QUI1");
 
-  if(abscissa_current_conf == abscissa_path_start) return;  //the start of the replanned path is the current configuration
+  double abscissa_path_start = current_path_->curvilinearAbscissaOfPoint(path_start->getConfiguration(),idx_path_start);
+  ROS_INFO("QUI2");
+
+  if(abscissa_current_conf == abscissa_path_start)
+  {
+    ROS_INFO("QUI22");
+    return;  //the start of the replanned path is the current configuration
+  }
   else if(abscissa_current_conf < abscissa_path_start)  //the replanned path starts from a position after the current one
   {
+    ROS_INFO("QUI23");
     if(idx_current_conf == idx_path_start)
     {
       //Directly connect the current configuration with the start of the replanned path
@@ -121,7 +139,11 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
     }
     if(idx_current_conf < idx_path_start)
     {
+      ROS_INFO("QUI3");
+
       NodePtr child = current_path_->getConnections().at(idx_current_conf)->getChild();
+      ROS_INFO("QUI4");
+
       if(child->getConfiguration() != configuration)
       {
         ConnectionPtr conn = std::make_shared<Connection>(current_node, child);
@@ -162,11 +184,14 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
   }
   else //the replanned path starts from a position before the current configuration
   {
+    ROS_INFO("QUI5");
+
     pathplan::NodePtr node;
 
     int idx_conn;
     if(path->findConnection(configuration,idx_conn) != NULL)
     {
+      ROS_INFO("QUI6");
       node = path->getConnections().at(idx_conn)->getChild();
 
       if((path->getConnections().size()-1) > idx_conn)
@@ -184,15 +209,25 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
 
         connections.push_back(conn);
       }
+
+      ROS_INFO("QUI7");
       if((path->getConnections().size()-1) > idx_conn) connections.insert(connections.end(),path_connections.begin(),path_connections.end());
+      ROS_INFO("QUI8");
+
       path->setConnections(connections);
     }
     else
     {
+      ROS_INFO("QUA");
+
       ConnectionPtr conn = current_path_->getConnections().at(idx_path_start);
+
+      ROS_INFO("QUA1");
 
       int idx = idx_path_start;
       if(path_start->getConfiguration() == current_path_->getConnections().at(idx_path_start)->getChild()->getConfiguration()) idx = idx_path_start + 1;
+
+      ROS_INFO("QUA2");
 
       int j = 0;
       int j_save = -2;
@@ -207,26 +242,35 @@ void Replanner::startReplannedPathFromNewCurrentConf(Eigen::VectorXd &configurat
         j+=1;
       }
 
+      ROS_INFO("QUA3");
+
       bool add_conn = false;
       if(j_save != -2)
       {
+        ROS_INFO("QUA4");
         for(unsigned int i=j_save+1; i<path->getConnections().size();i++) path_connections.push_back(path->getConnections().at(i));
+
+        ROS_INFO("QUA5");
         for(unsigned int i=0; i<=j_save; i++) path->getConnections().at(i)->remove();
       }
       else
       {
+        ROS_INFO("QUA6");
         if((conn->getParent()->getConfiguration() == path_start->getConfiguration()) || (conn->getChild()->getConfiguration() == path_start->getConfiguration()))
         {
+          ROS_INFO("QUA7");
           node = path_start;
           path_connections = path->getConnections();
         }
         else
         {
+          ROS_INFO("QUA8");
           if(idx_current_conf == idx_path_start) node = current_node;
           else node = current_path_->getConnections().at(idx_path_start)->getChild();
           path_connections = path->getConnections();
           add_conn = true;
         }
+        ROS_INFO("QUA9");
       }
 
       bool connected = false;
@@ -501,26 +545,29 @@ std::vector<NodePtr> Replanner::nodes2connect2(const PathPtr& path, const NodePt
   std::vector<NodePtr> path_node_vector;
 
   std::vector<ConnectionPtr> path_conn = path->getConnections();
-  if(path_conn.size()>1)
+  /*if(path_conn.size()>1)
+  {*/
+  std::multimap<double,NodePtr> node_map;
+
+  double distance;
+  for(unsigned int i=0; i<path_conn.size();i++)
   {
-    std::multimap<double,NodePtr> node_map;
-
-    double distance;
-    for(unsigned int i=0; i<path_conn.size();i++)
-    {
-      distance = (this_node->getConfiguration()-path_conn.at(i)->getParent()->getConfiguration()).norm();
-      node_map.insert(std::pair<double,NodePtr>(distance,path_conn.at(i)->getParent()));
-    }
-
-    for(const std::pair<double,NodePtr>& p: node_map)
-    {
-      path_node_vector.push_back(p.second);
-    }
+    distance = (this_node->getConfiguration()-path_conn.at(i)->getParent()->getConfiguration()).norm();
+    node_map.insert(std::pair<double,NodePtr>(distance,path_conn.at(i)->getParent()));
   }
+
+  distance = (this_node->getConfiguration()-path_conn.back()->getChild()->getConfiguration()).norm();
+  node_map.insert(std::pair<double,NodePtr>(distance,path_conn.back()->getChild()));
+
+  for(const std::pair<double,NodePtr>& p: node_map)
+  {
+    path_node_vector.push_back(p.second);
+  }
+  /*}
   else
   {
     path_node_vector.push_back(path_conn.at(0)->getParent());
-  }
+  }*/
 
   return path_node_vector;
 }
@@ -648,15 +695,23 @@ void Replanner::optimizePath(PathPtr& path, const double& max_time)
   //path_solver.setPath(connecting_path);
   //double opt_time = maxSolverTime(tic,tic_cycle);
 
-  if(max_time<=0.0) return;
-  ros::WallTime tic_opt = ros::WallTime::now();
-  path->warp(0.1,max_time);
-  ros::WallTime toc_opt = ros::WallTime::now();
+  //  ros::WallTime tic_simplify = ros::WallTime::now();
+  //  if(path->getConnections().at(0)->norm()<0.1)
+  //  {
+  //    //simplify solo della prima connessione
+  //  }
 
-  if(pathSwitch_verbose_)
-  {
-    ROS_INFO_STREAM("max opt time: "<<max_time<<" used time: "<<(toc_opt-tic_opt).toSec());
-  }
+  //  ros::WallTime toc_simplify = ros::WallTime::now();
+
+  //  if(max_time<=0.0) return;
+    ros::WallTime tic_opt = ros::WallTime::now();
+    path->warp(0.1,max_time);
+    ros::WallTime toc_opt = ros::WallTime::now();
+
+  //  if(pathSwitch_verbose_)
+  //  {
+  //    ROS_INFO_STREAM("max opt time: "<<max_time<<" used time: "<<(toc_opt-tic_opt).toSec());
+  //  }
 }
 
 bool Replanner::pathSwitch(const PathPtr &current_path,
@@ -716,9 +771,15 @@ bool Replanner::pathSwitch(const PathPtr &current_path,
       {
         tic_cycle = ros::WallTime::now();
 
-        PathPtr path2_node2goal = path2->getSubpathFromNode(path2_node);
-        std::vector<ConnectionPtr> subpath2_conn = path2_node2goal->getConnections();
-        double subpath2_cost = path2_node2goal->cost();
+        PathPtr path2_node2goal = NULL;
+        std::vector<ConnectionPtr> subpath2_conn;
+        double subpath2_cost = 0.0;
+        if(path2_node->getConfiguration() != current_path->getConnections().back()->getChild()->getConfiguration())
+        {
+          path2_node2goal = path2->getSubpathFromNode(path2_node);
+          subpath2_conn = path2_node2goal->getConnections();
+          subpath2_cost = path2_node2goal->cost();
+        }
 
         double diff_subpath_cost = candidate_solution_cost - subpath2_cost; //it is the maximum cost to make the connecting_path convenient
         double distance_path_node = (path1_node->getConfiguration()-path2_node->getConfiguration()).norm(); //the Euclidean distance is the minimum cost that the connecting_path can have
@@ -1360,6 +1421,11 @@ bool Replanner::informedOnlineReplanning(const double &max_time)
     {
       if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<min_time_pathSwitch);
       //if(informedOnlineReplanning_verbose_) ROS_INFO_STREAM("TIME OUT! available time: "<<available_time_<<", time needed for a new cycle: "<<time_percentage_variability_*informedOnlineReplanning_cycle_time_mean_);
+      if(informedOnlineReplanning_disp_)
+      {
+        ROS_INFO("Optimizing...");
+        disp_->nextButton();
+      }
 
       double cost_pre_opt = replanned_path->cost();
       ros::WallTime tic_warp = ros::WallTime::now();

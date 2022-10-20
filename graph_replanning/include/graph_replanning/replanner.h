@@ -91,11 +91,15 @@ public:
             PathPtr& current_path,
             std::vector<PathPtr>& other_paths,
             const TreeSolverPtr& solver,
-            //const BiRRTPtr solver,
             const MetricsPtr& metrics,
             const CollisionCheckerPtr& checker,
             const Eigen::VectorXd& lb,
             const Eigen::VectorXd& ub);
+
+  Replanner(Eigen::VectorXd& current_configuration,
+            PathPtr& current_path,
+            std::vector<PathPtr>& other_paths,
+            const TreeSolverPtr& solver);
 
   void setReplannedPath(const PathPtr& replanned_path)
   {

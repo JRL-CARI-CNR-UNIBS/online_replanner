@@ -9,7 +9,7 @@ trj_execution_thread_frequency: 500
 collision_checker_thread_frequency: 30
 spawn_objs: true
 init_test: 0
-end_test: 20
+end_test: 1
 opt_path: true
 display_timing_warning: true
 display_replanning_success: false
